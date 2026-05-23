@@ -699,7 +699,14 @@ export default function EyeCareGlobal({
       {/* Welcome (first run) */}
       <AnimatePresence>
         {showWelcome && (
-          <WelcomeModal language={language} onComplete={handleWelcomeComplete} />
+          <WelcomeModal
+            language={language}
+            onLanguageChange={(code) => {
+              setLanguage(code);
+              router.push(`/${code}`);
+            }}
+            onComplete={handleWelcomeComplete}
+          />
         )}
       </AnimatePresence>
 
