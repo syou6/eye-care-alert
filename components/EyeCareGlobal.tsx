@@ -1,28 +1,33 @@
 'use client';
 
-// EyeCareGlobal — Things 3 / Linear macOS-app style.
-// White card on system gray, hairline borders, big tabular-num timer,
-// solid blue primary CTA with icon. Light + dark themes only (no time curve).
-// Preserves Phase 1 reducer / FSM and i18n routing integration.
+// EyeCareGlobal — "Hours" editorial redesign.
+// Preserves the Phase-1 reducer (timestamp-based FSM) and the i18n routing
+// integration; only the JSX render tree adopts the new design language.
 
 import { useEffect, useMemo, useReducer, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import AdSlot from '@/components/AdSlot';
-import { translations, tKey, type Language } from '@/lib/translations';
+import { translations, HOURS_KEYS, tKey, type Language } from '@/lib/translations';
+import {
+  effectivePalette, paletteVars,
+  hourLabelFor, roman, isVigil, isRTL as hoursIsRTL, langLineHeight,
+  FONT_SERIF,
+} from '@/lib/hours';
 
 const SESSION_SECONDS = 20 * 60;
 const BREAK_SECONDS = 20;
 const STORAGE_KEY = 'eyeCarePreferences';
-const THEME_STORAGE_KEY = 'eyeCareTheme';
+const THEME_STORAGE_KEY = 'hours-theme';
 const DONATION_INTERVAL = 10;
 const BREAK_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_BREAK_SLOT ?? '';
-
+const SUPPORTED_LANGS = [
+  'en', 'ja', 'zh', 'ko', 'es', 'fr', 'de', 'pt', 'ru', 'ar', 'hi', 'it',
+] as const;
 const LANG_NATIVE: Record<string, string> = {
   en: 'English', ja: '日本語', zh: '中文', ko: '한국어', es: 'Español', fr: 'Français',
   de: 'Deutsch', pt: 'Português', ru: 'Русский', ar: 'العربية', hi: 'हिन्दी', it: 'Italiano',
 };
-const SUPPORTED_LANGS = Object.keys(LANG_NATIVE) as Language[];
 const SUPPORTED_LANG_PREFIXES: Language[] = [
   'ja', 'zh', 'ko', 'es', 'fr', 'de', 'pt', 'ru', 'ar', 'hi', 'it',
 ];
@@ -111,15 +116,18 @@ function detectLanguage(saved: Language | null): Language {
   return SUPPORTED_LANG_PREFIXES.find((p) => browserLang.startsWith(p)) ?? 'en';
 }
 
-type SavedPrefs = { sessionsCompleted: number; language: Language | null };
+type SavedPrefs = {
+  sessionsCompleted: number;
+  language: Language | null;
+};
 
 function loadPrefs(): SavedPrefs {
   const defaults: SavedPrefs = { sessionsCompleted: 0, language: null };
   if (typeof window === 'undefined') return defaults;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return defaults;
-    const parsed = JSON.parse(raw);
+    const saved = window.localStorage.getItem(STORAGE_KEY);
+    if (!saved) return defaults;
+    const parsed = JSON.parse(saved);
     return {
       sessionsCompleted: typeof parsed?.sessionsCompleted === 'number' ? parsed.sessionsCompleted : 0,
       language: typeof parsed?.language === 'string' ? (parsed.language as Language) : null,
@@ -134,7 +142,7 @@ function savePrefs(prefs: { sessionsCompleted: number; language: Language }) {
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
   } catch {
-    // ignore
+    // quota / private mode — ignore
   }
 }
 
@@ -148,68 +156,77 @@ function formatTime(seconds: number) {
 
 export default function EyeCareGlobal({
   initialLanguage,
-}: { initialLanguage?: Language } = {}) {
+}: {
+  initialLanguage?: Language;
+} = {}) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const [language, setLanguage] = useState<Language>(initialLanguage ?? 'en');
-  const [theme, setTheme] = useState<'auto' | 'light' | 'dark'>('auto');
   const [showLangPicker, setShowLangPicker] = useState(false);
   const [showDonation, setShowDonation] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [systemDark, setSystemDark] = useState(false);
   const lastDonationShownAt = useRef(0);
   const router = useRouter();
 
   const t = translations[language];
-  const isRTL = language === 'ar';
+  const isRTL = hoursIsRTL(language);
   const dir: 'ltr' | 'rtl' = isRTL ? 'rtl' : 'ltr';
-  const isDark = theme === 'dark' || (theme === 'auto' && systemDark);
+  const lh = langLineHeight(language);
 
-  // Hydrate prefs + theme + system dark mode
+  // Local hour drives the palette — recomputed every minute.
+  const [hour, setHour] = useState(() => {
+    const d = new Date();
+    return d.getHours() + d.getMinutes() / 60;
+  });
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      const d = new Date();
+      setHour(d.getHours() + d.getMinutes() / 60);
+    }, 60_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  // Theme override (auto/light/dark) persisted under its own key.
+  const [theme, setTheme] = useState<'auto' | 'light' | 'dark'>('auto');
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const saved = window.localStorage.getItem(THEME_STORAGE_KEY);
+      if (saved === 'auto' || saved === 'light' || saved === 'dark') setTheme(saved);
+    } catch {
+      // ignore
+    }
+  }, []);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+    } catch {
+      // ignore
+    }
+  }, [theme]);
+
+  // Hydrate session prefs once (URL-provided language wins).
   useEffect(() => {
     const prefs = loadPrefs();
     if (!initialLanguage) setLanguage(detectLanguage(prefs.language));
     dispatch({ type: 'HYDRATE_SESSIONS', n: prefs.sessionsCompleted });
     lastDonationShownAt.current = prefs.sessionsCompleted;
-    try {
-      const t = window.localStorage.getItem(THEME_STORAGE_KEY);
-      if (t === 'auto' || t === 'light' || t === 'dark') setTheme(t);
-    } catch {
-      // ignore
-    }
     setIsLoaded(true);
   }, [initialLanguage]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    setSystemDark(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setSystemDark(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
 
   useEffect(() => {
     if (!isLoaded) return;
     savePrefs({ sessionsCompleted: state.sessionsCompleted, language });
   }, [language, state.sessionsCompleted, isLoaded]);
 
-  useEffect(() => {
-    if (!isLoaded) return;
-    try {
-      window.localStorage.setItem(THEME_STORAGE_KEY, theme);
-    } catch {
-      // ignore
-    }
-  }, [theme, isLoaded]);
-
+  // Set <html> dir + lang to match current language.
   useEffect(() => {
     if (typeof document === 'undefined') return;
     document.documentElement.dir = dir;
     document.documentElement.lang = language;
-    document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
-  }, [dir, language, isDark]);
+  }, [dir, language]);
 
-  // Single ticker, drift-free
+  // Single ticker — recomputes remaining from endTime, no drift.
   useEffect(() => {
     if (state.endTime == null) return;
     const tick = () => dispatch({ type: 'TICK', now: Date.now() });
@@ -228,6 +245,7 @@ export default function EyeCareGlobal({
     return () => document.removeEventListener('visibilitychange', onVis);
   }, []);
 
+  // Phase transitions when remaining reaches zero.
   useEffect(() => {
     if (state.remaining !== 0) return;
     if (state.phase === 'work') {
@@ -240,7 +258,7 @@ export default function EyeCareGlobal({
             icon: '/icon.svg',
           });
         } catch {
-          // ignore
+          // some browsers throw
         }
       }
       const next = state.sessionsCompleted + 1;
@@ -268,328 +286,205 @@ export default function EyeCareGlobal({
   const handleSkipBreak = useCallback(() => dispatch({ type: 'SKIP_BREAK' }), []);
 
   const cycleTheme = useCallback(() => {
-    setTheme((x) => (x === 'auto' ? 'light' : x === 'light' ? 'dark' : 'auto'));
+    setTheme((x) => (x === 'auto' ? 'dark' : x === 'dark' ? 'light' : 'auto'));
   }, []);
 
+  // Derived UI flags.
   const isActive = state.endTime !== null && state.phase === 'work';
   const isPaused = state.phase === 'idle' && state.workRemaining < SESSION_SECONDS && state.workRemaining > 0;
   const showBreak = state.phase === 'break';
   const last60 = isActive && state.remaining <= 60;
+  const palette = useMemo(() => effectivePalette(hour, theme), [hour, theme]);
+  const vigil = (theme === 'auto' && isVigil(hour)) || theme === 'dark';
   const workSecondsForProgress = state.phase === 'work' ? state.remaining : state.workRemaining;
   const progress = Math.min(1, Math.max(0, (SESSION_SECONDS - workSecondsForProgress) / SESSION_SECONDS));
-
-  const palette = useMemo(
-    () =>
-      isDark
-        ? {
-            pageBg: '#0a0a0a',
-            cardBg: '#161618',
-            cardBorder: 'rgba(255,255,255,0.08)',
-            cardShadow: '0 1px 2px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.3)',
-            ink: '#f5f5f7',
-            mute: '#86868b',
-            subtle: '#48484a',
-            railBg: '#2c2c2e',
-            primary: '#0a84ff',
-            primaryHover: '#1a8eff',
-            warn: '#ff453a',
-            badgeBg: 'rgba(10,132,255,0.12)',
-            badgeText: '#0a84ff',
-          }
-        : {
-            pageBg: '#f5f5f7',
-            cardBg: '#ffffff',
-            cardBorder: 'rgba(0,0,0,0.06)',
-            cardShadow: '0 1px 2px rgba(0,0,0,0.04), 0 12px 32px rgba(0,0,0,0.06)',
-            ink: '#1d1d1f',
-            mute: '#6e6e73',
-            subtle: '#c7c7cc',
-            railBg: '#e5e5ea',
-            primary: '#007aff',
-            primaryHover: '#0066d6',
-            warn: '#ff3b30',
-            badgeBg: '#eef2ff',
-            badgeText: '#3056d3',
-          },
-    [isDark],
-  );
-
-  const sansStack =
-    'var(--font-geist-sans, "Geist Sans"), -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
-  const monoStack =
-    'var(--font-geist-mono, "Geist Mono"), "SF Mono", Menlo, Consolas, monospace';
+  const localTime = `${String(Math.floor(hour)).padStart(2, '0')}:${String(Math.floor((hour % 1) * 60)).padStart(2, '0')}`;
+  const hourLabel = hourLabelFor(hour);
+  const hourWord =
+    (translations[language] as unknown as { hourWords?: Record<string, string> })?.hourWords?.[hourLabel] ??
+    HOURS_KEYS.hourWords[hourLabel] ??
+    hourLabel;
 
   return (
     <div
       dir={dir}
       style={{
+        ...paletteVars(palette),
+        background: 'var(--c-bg)',
+        color: 'var(--c-ink)',
         minHeight: '100dvh',
-        background: palette.pageBg,
-        color: palette.ink,
-        fontFamily: sansStack,
         display: 'flex',
         flexDirection: 'column',
-        transition: 'background-color 200ms ease, color 200ms ease',
+        fontFamily: 'var(--font-geist-sans, "Geist Sans", ui-sans-serif, system-ui, sans-serif)',
+        containerType: 'inline-size',
+        transition: 'background-color 1.6s ease, color 1.6s ease',
       }}
     >
-      {/* App chrome bar */}
+      {/* Masthead */}
       <header
-        style={{
-          padding: '14px 20px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 12,
-        }}
+        className="flex items-baseline justify-between px-5 pt-4 pb-3"
+        style={{ borderBottom: '1px solid var(--c-rule)', gap: 12 }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-          <span aria-hidden style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 8, background: palette.badgeBg }}>
-            <EyeGlyph color={palette.primary} />
+        <div className="flex items-baseline gap-3 min-w-0 flex-1">
+          <span style={{
+            fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
+            fontSize: '.6875rem', fontWeight: 500, letterSpacing: '.16em',
+            textTransform: 'uppercase', whiteSpace: 'nowrap',
+          }}>
+            {vigil ? '☾ ' : ''}EYE&nbsp;CARE
           </span>
-          <span style={{ fontWeight: 600, fontSize: '0.9375rem', letterSpacing: '-0.005em' }}>
-            EYE CARE
-          </span>
+          <span style={{
+            fontFamily: FONT_SERIF, fontStyle: 'italic',
+            fontSize: '.82rem', color: 'var(--c-mute)',
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          }}>{hourWord}</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <ChromeButton onClick={() => setShowLangPicker(true)} ariaLabel="Language" palette={palette}>
-            <span style={{ fontFamily: monoStack, fontSize: '0.75rem', letterSpacing: '0.04em', fontWeight: 500 }}>
-              {language.toUpperCase()}
-            </span>
-          </ChromeButton>
-          <ChromeButton onClick={cycleTheme} ariaLabel={`Theme: ${theme}`} palette={palette}>
-            <ThemeIcon theme={theme} />
-          </ChromeButton>
+        <div className="flex items-center gap-3 shrink-0">
+          <button
+            onClick={() => setShowLangPicker(true)}
+            aria-label="Language"
+            style={{
+              fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
+              fontSize: '.625rem', letterSpacing: '.12em',
+              textTransform: 'uppercase', color: 'var(--c-mute)',
+              background: 'transparent', border: 0, cursor: 'pointer',
+            }}
+          >
+            {language.toUpperCase()}
+          </button>
+          <button
+            onClick={cycleTheme}
+            aria-label={`Theme: ${theme}`}
+            style={{ color: 'var(--c-mute)', background: 'transparent', border: 0, cursor: 'pointer', padding: 4 }}
+          >
+            <ThemeGlyph theme={theme} />
+          </button>
         </div>
       </header>
 
-      {/* Main card */}
-      <main style={{ flex: 1, display: 'grid', placeItems: 'center', padding: '8px 16px 40px' }}>
-        <section
+      {/* Hairline progress */}
+      <div style={{ height: 1, background: 'var(--c-rule)', position: 'relative' }}>
+        <motion.div
           style={{
-            width: '100%',
-            maxWidth: 420,
-            background: palette.cardBg,
-            border: `1px solid ${palette.cardBorder}`,
-            borderRadius: 24,
-            boxShadow: palette.cardShadow,
-            padding: '32px 28px 24px',
+            position: 'absolute', insetInlineStart: 0, top: -0.5, height: 2,
+            background: last60 ? 'var(--c-warn)' : 'var(--c-primary)',
           }}
-        >
-          {/* Status badge */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '5px 10px',
-                borderRadius: 999,
-                background: isActive ? palette.badgeBg : 'transparent',
-                border: isActive ? 'none' : `1px solid ${palette.cardBorder}`,
-                color: isActive ? palette.badgeText : palette.mute,
-                fontSize: '0.6875rem',
-                fontWeight: 600,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                fontFamily: monoStack,
-              }}
-            >
-              <StatusDot active={isActive} color={isActive ? palette.primary : palette.subtle} />
-              {isActive ? t.tracking : isPaused ? t.paused : t.subtitle.split(' • ')[0] ?? t.subtitle}
-            </span>
-          </div>
+          animate={{ width: `${progress * 100}%` }}
+          transition={{ duration: 0.9, ease: 'linear' }}
+        />
+      </div>
 
-          {/* Time */}
+      {/* Centerpiece */}
+      <main className="flex-1 grid place-items-center px-6 py-8" style={{ gridTemplateRows: '1fr auto 1fr' }}>
+        <div />
+        <div className="text-center" style={{ maxWidth: 760 }}>
+          <div style={{
+            fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
+            fontSize: '.625rem', letterSpacing: '.12em', textTransform: 'uppercase',
+            color: 'var(--c-mute)', marginBottom: 10,
+          }}>
+            {t.title} · {roman(state.sessionsCompleted + 1)} · {localTime}
+          </div>
           <div
             aria-live="polite"
             style={{
-              textAlign: 'center',
-              fontVariantNumeric: 'tabular-nums lining-nums',
-              fontFeatureSettings: '"tnum","lnum"',
-              fontWeight: 300,
-              fontSize: 'clamp(4rem, 18vw, 6rem)',
-              letterSpacing: '-0.03em',
-              lineHeight: 1,
-              color: last60 ? palette.warn : palette.ink,
-              transition: 'color 200ms ease',
+              fontFamily: FONT_SERIF, fontStyle: 'italic', fontWeight: vigil ? 200 : 300,
+              fontSize: 'clamp(5rem, 32cqw, 16rem)', lineHeight: 0.92,
+              letterSpacing: '-0.02em', color: 'var(--c-ink)',
+              fontVariantNumeric: 'lining-nums tabular-nums',
+              position: 'relative',
             }}
           >
             {formatTime(state.remaining)}
+            {last60 && (
+              <span aria-hidden style={{
+                position: 'absolute', inset: '-6%',
+                background: 'radial-gradient(closest-side, var(--c-warn) 0%, transparent 65%)',
+                opacity: 0.14, pointerEvents: 'none',
+              }} />
+            )}
           </div>
-
-          {/* Progress bar */}
-          <div
-            role="progressbar"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={Math.round(progress * 100)}
-            style={{
-              marginTop: 20,
-              height: 4,
-              borderRadius: 999,
-              background: palette.railBg,
-              position: 'relative',
-              overflow: 'hidden',
-            }}
-          >
-            <motion.div
-              animate={{ width: `${progress * 100}%` }}
-              transition={{ duration: 0.4, ease: 'linear' }}
-              style={{
-                position: 'absolute',
-                insetInlineStart: 0,
-                top: 0,
-                height: '100%',
-                borderRadius: 999,
-                background: last60 ? palette.warn : palette.primary,
-              }}
-            />
+          <div style={{
+            fontFamily: FONT_SERIF, fontStyle: 'italic',
+            fontSize: '1.125rem', color: 'var(--c-mute)',
+            marginTop: 10, lineHeight: lh,
+          }}>
+            {!isActive && !isPaused && t.subtitle}
+            {isActive && (last60 ? '—' : <em>{t.tracking?.toLowerCase?.() ?? t.tracking}</em>)}
+            {isPaused && <em>{t.paused?.toLowerCase?.() ?? t.paused}</em>}
           </div>
+        </div>
 
-          {/* Session meta */}
-          <div
-            style={{
-              marginTop: 14,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 12,
-              fontSize: '0.75rem',
-              color: palette.mute,
-              fontVariantNumeric: 'tabular-nums',
-            }}
-          >
-            <span>20–20–20</span>
-            <span style={{ opacity: 0.5 }}>·</span>
-            <span>
-              {state.sessionsCompleted} {(t.totalSessions ?? '').toLowerCase()}
-            </span>
-          </div>
-
-          {/* Primary action */}
+        <div className="self-start mt-8 flex flex-col items-center gap-3">
           <button
             onClick={handleStartPause}
             style={{
-              marginTop: 24,
-              width: '100%',
-              padding: '14px 18px',
-              borderRadius: 14,
-              border: 0,
-              background: palette.primary,
-              color: '#ffffff',
-              fontSize: '0.9375rem',
-              fontWeight: 600,
-              letterSpacing: '-0.005em',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8,
-              minHeight: 48,
-              boxShadow: `0 1px 2px rgba(0,0,0,0.08), 0 8px 20px ${palette.primary}33`,
-              transition: 'transform 80ms ease, background-color 120ms ease',
+              fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
+              fontSize: '.6875rem', letterSpacing: '.16em', textTransform: 'uppercase',
+              border: '1px solid var(--c-ink)', color: 'var(--c-ink)',
+              background: 'transparent', padding: '12px 22px',
+              minHeight: 44, minWidth: 132, cursor: 'pointer',
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = palette.primaryHover)}
-            onMouseLeave={(e) => (e.currentTarget.style.background = palette.primary)}
-            onMouseDown={(e) => (e.currentTarget.style.transform = 'scale(0.99)')}
-            onMouseUp={(e) => (e.currentTarget.style.transform = 'scale(1)')}
           >
-            {isActive ? <PauseIcon /> : <PlayIcon />}
             {isActive ? t.pause : t.start}
           </button>
-
-          {/* Secondary */}
           <button
             onClick={handleReset}
             style={{
-              marginTop: 8,
-              width: '100%',
-              padding: '10px 12px',
-              border: 0,
-              background: 'transparent',
-              color: palette.mute,
-              fontSize: '0.8125rem',
-              fontWeight: 500,
+              fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
+              fontSize: '.625rem', letterSpacing: '.12em', textTransform: 'uppercase',
+              color: 'var(--c-mute)', background: 'transparent', border: 0, padding: '8px 12px',
               cursor: 'pointer',
-              borderRadius: 10,
-              transition: 'color 120ms ease, background-color 120ms ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = palette.ink;
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = palette.mute;
             }}
           >
             {t.reset}
           </button>
-        </section>
-
-        {/* Affiliate strip */}
-        <div
-          style={{
-            marginTop: 28,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 10,
-            fontSize: '0.6875rem',
-            color: palette.mute,
-            textAlign: 'center',
-            flexWrap: 'wrap',
-            padding: '0 16px',
-          }}
-        >
-          <a href="https://amzn.to/blulight-glasses" target="_blank" rel="sponsored noopener noreferrer" style={affLink(palette)}>
-            {t.blueLightGlasses}
-          </a>
-          <span style={{ opacity: 0.4 }}>·</span>
-          <a href="https://amzn.to/eye-drops" target="_blank" rel="sponsored noopener noreferrer" style={affLink(palette)}>
-            {t.eyeDrops}
-          </a>
-          <span style={{ opacity: 0.4 }}>·</span>
-          <a href="https://amzn.to/monitor-light" target="_blank" rel="sponsored noopener noreferrer" style={affLink(palette)}>
-            {t.monitorLight}
-          </a>
         </div>
       </main>
 
       {/* Footer */}
-      <footer
-        style={{
-          padding: '20px 24px 28px',
-          textAlign: 'center',
-          fontSize: '0.6875rem',
-          color: palette.mute,
-        }}
-      >
-        <a
-          href="https://buymeacoffee.com/shokawamoto"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            color: palette.mute,
-            textDecoration: 'none',
-            borderBottom: `1px dotted ${palette.subtle}`,
-            paddingBottom: 1,
-          }}
-        >
-          {t.buyCoffee}
-        </a>
-        <span style={{ opacity: 0.4, margin: '0 10px' }}>·</span>
-        <a
-          href="https://x.com/K8292288065827"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            color: palette.mute,
-            textDecoration: 'none',
-            borderBottom: `1px dotted ${palette.subtle}`,
-            paddingBottom: 1,
-          }}
-        >
-          {t.contactUs}
-        </a>
+      <footer style={{ borderTop: '1px solid var(--c-rule)', padding: '12px 20px 14px' }} className="flex flex-col gap-2">
+        <div className="flex justify-between items-baseline">
+          <div style={{
+            fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
+            fontSize: '.625rem', letterSpacing: '.12em', textTransform: 'uppercase',
+            color: 'var(--c-mute)',
+          }}>
+            <span style={{ fontFamily: FONT_SERIF, fontStyle: 'italic', letterSpacing: 0, textTransform: 'none' }}>
+              {roman(state.sessionsCompleted)}
+            </span>
+            <span style={{ margin: '0 .5em', opacity: 0.5 }}>·</span>
+            {t.totalSessions?.toLowerCase?.() ?? t.totalSessions}
+          </div>
+          <a
+            href="https://buymeacoffee.com/shokawamoto"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
+              fontSize: '.625rem', letterSpacing: '.12em', textTransform: 'uppercase',
+              color: 'var(--c-mute)', textDecoration: 'none',
+            }}
+          >
+            {t.buyCoffee}
+          </a>
+        </div>
+        <nav style={{
+          fontFamily: FONT_SERIF, fontStyle: 'italic', fontSize: '.78rem',
+          color: 'var(--c-mute)', textAlign: 'center',
+        }}>
+          <a href="https://amzn.to/blulight-glasses" target="_blank" rel="sponsored noopener noreferrer" style={affLink}>
+            {t.blueLightGlasses}
+          </a>
+          <span style={{ opacity: 0.4, margin: '0 8px' }}>·</span>
+          <a href="https://amzn.to/eye-drops" target="_blank" rel="sponsored noopener noreferrer" style={affLink}>
+            {t.eyeDrops}
+          </a>
+          <span style={{ opacity: 0.4, margin: '0 8px' }}>·</span>
+          <a href="https://amzn.to/monitor-light" target="_blank" rel="sponsored noopener noreferrer" style={affLink}>
+            {t.monitorLight}
+          </a>
+        </nav>
       </footer>
 
       {/* Break overlay */}
@@ -598,9 +493,7 @@ export default function EyeCareGlobal({
           <BreakOverlay
             language={language}
             breakRemaining={state.remaining}
-            palette={palette}
-            sansStack={sansStack}
-            monoStack={monoStack}
+            vigil={vigil}
             onSkip={handleSkipBreak}
           />
         )}
@@ -611,8 +504,6 @@ export default function EyeCareGlobal({
         {showLangPicker && (
           <LanguagePicker
             current={language}
-            palette={palette}
-            sansStack={sansStack}
             onPick={(code) => {
               setLanguage(code);
               setShowLangPicker(false);
@@ -629,9 +520,6 @@ export default function EyeCareGlobal({
           <DonationModal
             language={language}
             sessionsCompleted={state.sessionsCompleted}
-            palette={palette}
-            sansStack={sansStack}
-            monoStack={monoStack}
             onClose={() => setShowDonation(false)}
           />
         )}
@@ -640,285 +528,156 @@ export default function EyeCareGlobal({
   );
 }
 
-// ─── Atoms ─────────────────────────────────────────────────────────────────
-
-type Palette = {
-  pageBg: string; cardBg: string; cardBorder: string; cardShadow: string;
-  ink: string; mute: string; subtle: string; railBg: string;
-  primary: string; primaryHover: string; warn: string;
-  badgeBg: string; badgeText: string;
+const affLink: React.CSSProperties = {
+  color: 'var(--c-mute)',
+  textDecoration: 'none',
+  borderBottom: '1px dotted var(--c-rule)',
+  paddingBottom: 1,
 };
 
-function affLink(p: Palette): React.CSSProperties {
-  return {
-    color: p.mute,
-    textDecoration: 'none',
-    borderBottom: `1px dotted ${p.subtle}`,
-    paddingBottom: 1,
-    whiteSpace: 'nowrap',
-  };
-}
-
-function ChromeButton({
-  onClick,
-  ariaLabel,
-  palette,
-  children,
-}: {
-  onClick: () => void;
-  ariaLabel: string;
-  palette: Palette;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      aria-label={ariaLabel}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 6,
-        minHeight: 32,
-        minWidth: 32,
-        padding: '0 10px',
-        borderRadius: 8,
-        border: 0,
-        background: 'transparent',
-        color: palette.mute,
-        cursor: 'pointer',
-        transition: 'background-color 120ms ease, color 120ms ease',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = palette.badgeBg;
-        e.currentTarget.style.color = palette.ink;
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = 'transparent';
-        e.currentTarget.style.color = palette.mute;
-      }}
-    >
-      {children}
-    </button>
-  );
-}
-
-function StatusDot({ active, color }: { active: boolean; color: string }) {
-  return (
-    <span
-      aria-hidden
-      style={{
-        width: 6,
-        height: 6,
-        borderRadius: 999,
-        background: color,
-        boxShadow: active ? `0 0 0 3px ${color}22` : 'none',
-        display: 'inline-block',
-      }}
-    />
-  );
-}
-
-function EyeGlyph({ color }: { color: string }) {
-  return (
-    <svg width="16" height="11" viewBox="0 0 18 12" fill="none" aria-hidden>
-      <path d="M1 6 C 4 1, 14 1, 17 6 C 14 11, 4 11, 1 6 Z" stroke="currentColor" strokeWidth="1.4" />
-      <circle cx="9" cy="6" r="2.4" fill={color} />
-    </svg>
-  );
-}
-
-function PlayIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
-      <path d="M3.5 2.5 L11 7 L3.5 11.5 Z" fill="currentColor" />
-    </svg>
-  );
-}
-
-function PauseIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
-      <rect x="3" y="2.5" width="3" height="9" rx="1" fill="currentColor" />
-      <rect x="8" y="2.5" width="3" height="9" rx="1" fill="currentColor" />
-    </svg>
-  );
-}
-
-function ThemeIcon({ theme }: { theme: 'auto' | 'light' | 'dark' }) {
-  if (theme === 'dark')
-    return (
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-        <path d="M12.5 9.2A4.5 4.5 0 1 1 6.8 3.5 5 5 0 0 0 12.5 9.2Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
-      </svg>
-    );
-  if (theme === 'light')
-    return (
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-        <circle cx="8" cy="8" r="2.5" stroke="currentColor" strokeWidth="1.4" />
-        <g stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-          <path d="M8 1.5v1.4M8 13.1v1.4M1.5 8h1.4M13.1 8h1.4M3.4 3.4l1 1M11.6 11.6l1 1M3.4 12.6l1-1M11.6 4.4l1-1" />
-        </g>
-      </svg>
-    );
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-      <circle cx="8" cy="8" r="4.2" stroke="currentColor" strokeWidth="1.4" />
-      <path d="M8 3.8v8.4a4.2 4.2 0 0 0 0-8.4Z" fill="currentColor" />
-    </svg>
-  );
-}
-
-// ─── Break overlay ─────────────────────────────────────────────────────────
+// ─── Break overlay ────────────────────────────────────────────────────────
 
 function BreakOverlay({
-  language, breakRemaining, palette, sansStack, monoStack, onSkip,
+  language, breakRemaining, vigil, onSkip,
 }: {
   language: Language;
   breakRemaining: number;
-  palette: Palette;
-  sansStack: string;
-  monoStack: string;
+  vigil: boolean;
   onSkip: () => void;
 }) {
   const t = translations[language];
   const elapsed = BREAK_SECONDS - breakRemaining;
-  const progress = Math.min(1, Math.max(0, elapsed / BREAK_SECONDS));
+  const dir: 'ltr' | 'rtl' = hoursIsRTL(language) ? 'rtl' : 'ltr';
+  const lh = langLineHeight(language);
+
+  const ct = elapsed % 10;
+  let phaseText = tKey(language, 'breatheIn');
+  let scale = 0.6 + 0.4 * (ct / 4);
+  if (ct >= 4 && ct < 6) {
+    phaseText = tKey(language, 'breatheHold');
+    scale = 1.0;
+  } else if (ct >= 6) {
+    phaseText = tKey(language, 'breatheOut');
+    scale = 1.0 - 0.4 * ((ct - 6) / 4);
+  }
+
+  const adVisible = elapsed >= 5;
 
   return (
     <motion.div
+      dir={dir}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.25 }}
+      transition={{ duration: 0.4 }}
       role="dialog"
       aria-label={t.restYourEyes}
       style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 50,
-        background: palette.pageBg,
-        color: palette.ink,
-        display: 'grid',
-        placeItems: 'center',
-        padding: 24,
-        fontFamily: sansStack,
+        position: 'fixed', inset: 0, zIndex: 50,
+        background: 'var(--c-surface)', color: 'var(--c-ink)',
+        display: 'flex', flexDirection: 'column',
+        fontFamily: 'var(--font-geist-sans, "Geist Sans", ui-sans-serif, system-ui, sans-serif)',
+        containerType: 'inline-size',
       }}
     >
-      <div style={{ width: '100%', maxWidth: 420, textAlign: 'center' }}>
-        <div
+      <div
+        className="px-5 py-4 flex justify-between items-center"
+        style={{
+          fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
+          fontSize: '.6875rem', letterSpacing: '.16em', textTransform: 'uppercase',
+          color: 'var(--c-mute)',
+        }}
+      >
+        <span>{vigil ? '☾ ' : ''}EYE&nbsp;CARE</span>
+        <span style={{
+          fontFamily: FONT_SERIF, fontStyle: 'italic',
+          fontSize: '.75rem', letterSpacing: 0, textTransform: 'none',
+        }}>{t.restYourEyes?.toLowerCase?.() ?? t.restYourEyes}</span>
+      </div>
+
+      <div className="flex-1 grid place-items-center relative">
+        <motion.div
           aria-hidden
+          animate={{ scale }}
+          transition={{ duration: 1, ease: [0.4, 0, 0.2, 1] }}
           style={{
-            margin: '0 auto 28px',
-            width: 96,
-            height: 96,
-            borderRadius: 999,
-            background: palette.badgeBg,
-            display: 'grid',
-            placeItems: 'center',
-            color: palette.primary,
+            position: 'absolute',
+            width: 'min(46vh, 360px)', height: 'min(46vh, 360px)',
+            borderRadius: '50%',
+            background: 'radial-gradient(closest-side, var(--c-primary) 0%, transparent 70%)',
+            opacity: 0.22,
           }}
-        >
-          <svg width="44" height="30" viewBox="0 0 44 30" fill="none" aria-hidden>
-            <path d="M2 15 C 8 3, 36 3, 42 15 C 36 27, 8 27, 2 15 Z" stroke="currentColor" strokeWidth="2" />
-            <circle cx="22" cy="15" r="6.5" fill="currentColor" />
-          </svg>
-        </div>
+        />
+        <motion.div
+          aria-hidden
+          animate={{ scale: scale * 0.95 }}
+          transition={{ duration: 1.2, ease: [0.4, 0, 0.2, 1] }}
+          style={{
+            position: 'absolute',
+            width: 'min(46vh, 360px)', height: 'min(46vh, 360px)',
+            borderRadius: '50%',
+            border: '1px solid var(--c-rule)',
+          }}
+        />
 
-        <h2
-          style={{
-            margin: 0,
-            fontSize: '1.5rem',
-            fontWeight: 600,
-            letterSpacing: '-0.015em',
-          }}
-        >
-          {t.restYourEyes}
-        </h2>
-        <p
-          style={{
-            margin: '8px 0 28px',
-            color: palette.mute,
-            fontSize: '0.9375rem',
-          }}
-        >
-          {t.lookAway}
-        </p>
-
-        <div
-          style={{
-            fontFamily: monoStack,
-            fontSize: 'clamp(4rem, 18vw, 5.5rem)',
-            fontWeight: 300,
-            letterSpacing: '-0.03em',
-            fontVariantNumeric: 'tabular-nums lining-nums',
-            color: palette.ink,
-          }}
-        >
-          {String(breakRemaining).padStart(2, '0')}
-        </div>
-
-        <div
-          style={{
-            margin: '20px auto 0',
-            width: '70%',
-            height: 4,
-            borderRadius: 999,
-            background: palette.railBg,
-            position: 'relative',
-            overflow: 'hidden',
-          }}
-        >
+        <div className="text-center relative">
+          <div style={{
+            fontFamily: FONT_SERIF, fontStyle: 'italic', fontWeight: 300,
+            fontSize: 'clamp(3rem, 20cqw, 8rem)', lineHeight: 1,
+            letterSpacing: '-0.02em', color: 'var(--c-ink)',
+            fontVariantNumeric: 'lining-nums tabular-nums',
+          }}>
+            {String(breakRemaining).padStart(2, '0')}
+          </div>
           <motion.div
-            animate={{ width: `${progress * 100}%` }}
-            transition={{ duration: 0.4, ease: 'linear' }}
+            key={phaseText}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
             style={{
-              position: 'absolute',
-              insetInlineStart: 0,
-              top: 0,
-              height: '100%',
-              borderRadius: 999,
-              background: palette.primary,
+              fontFamily: FONT_SERIF, fontStyle: 'italic',
+              fontSize: '1.125rem', color: 'var(--c-ink)', marginTop: 12, lineHeight: lh,
             }}
-          />
+          >
+            {phaseText}
+          </motion.div>
+          <div style={{
+            fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
+            fontSize: '.625rem', letterSpacing: '.12em', textTransform: 'uppercase',
+            color: 'var(--c-mute)', marginTop: 18,
+          }}>
+            {t.lookAway}
+          </div>
         </div>
+      </div>
 
-        <button
-          onClick={onSkip}
-          disabled={elapsed < 3}
-          style={{
-            marginTop: 32,
-            padding: '8px 16px',
-            border: 0,
-            background: 'transparent',
-            color: palette.mute,
-            fontSize: '0.8125rem',
-            fontWeight: 500,
-            cursor: elapsed < 3 ? 'not-allowed' : 'pointer',
-            opacity: elapsed < 3 ? 0.4 : 1,
-            borderRadius: 10,
-          }}
-        >
-          {t.skipBreak}
-        </button>
-
-        {BREAK_AD_SLOT && elapsed >= 5 && (
+      <div className="px-5 pb-5">
+        <div className="flex justify-center mb-3">
+          <button
+            onClick={onSkip}
+            disabled={elapsed < 3}
+            style={{
+              fontFamily: FONT_SERIF, fontStyle: 'italic',
+              color: 'var(--c-mute)', background: 'transparent', border: 0,
+              padding: '6px 12px', fontSize: '.95rem',
+              borderBottom: '1px dotted var(--c-rule)',
+              cursor: elapsed < 3 ? 'not-allowed' : 'pointer',
+              opacity: elapsed < 3 ? 0.4 : 1,
+            }}
+          >
+            {t.skipBreak?.toLowerCase?.() ?? t.skipBreak}
+          </button>
+        </div>
+        {BREAK_AD_SLOT && (
           <motion.div
             initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5 }}
-            style={{ marginTop: 32, paddingTop: 20, borderTop: `1px solid ${palette.cardBorder}` }}
+            animate={{ opacity: adVisible ? 1 : 0 }}
+            transition={{ duration: 0.8 }}
+            style={{ borderTop: '1px solid var(--c-rule)', paddingTop: 14, textAlign: 'center' }}
           >
-            <div
-              style={{
-                fontSize: '0.6875rem',
-                color: palette.mute,
-                marginBottom: 10,
-                fontFamily: monoStack,
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-              }}
-            >
+            <div style={{
+              fontFamily: FONT_SERIF, fontStyle: 'italic',
+              fontSize: '.78rem', color: 'var(--c-mute)', marginBottom: 10,
+            }}>
               {tKey(language, 'sponsoredBy')}
             </div>
             <AdSlot slot={BREAK_AD_SLOT} format="auto" reservedHeight={100} />
@@ -929,14 +688,12 @@ function BreakOverlay({
   );
 }
 
-// ─── Language picker ───────────────────────────────────────────────────────
+// ─── Language picker ──────────────────────────────────────────────────────
 
 function LanguagePicker({
-  current, palette, sansStack, onPick, onClose,
+  current, onPick, onClose,
 }: {
   current: Language;
-  palette: Palette;
-  sansStack: string;
   onPick: (lang: Language) => void;
   onClose: () => void;
 }) {
@@ -947,88 +704,61 @@ function LanguagePicker({
       exit={{ opacity: 0 }}
       onClick={onClose}
       style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 60,
-        display: 'grid',
-        placeItems: 'center',
-        padding: 16,
-        background: 'rgba(0,0,0,0.4)',
-        backdropFilter: 'blur(8px)',
-        fontFamily: sansStack,
+        position: 'fixed', inset: 0, zIndex: 60,
+        background: 'color-mix(in srgb, var(--c-bg) 85%, transparent)',
+        display: 'grid', placeItems: 'center', padding: 24,
       }}
     >
       <motion.div
-        initial={{ scale: 0.96, y: 8, opacity: 0 }}
-        animate={{ scale: 1, y: 0, opacity: 1 }}
-        exit={{ scale: 0.98, opacity: 0 }}
+        initial={{ y: 8, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: 4, opacity: 0 }}
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: '100%',
-          maxWidth: 360,
-          background: palette.cardBg,
-          border: `1px solid ${palette.cardBorder}`,
-          borderRadius: 18,
-          boxShadow: palette.cardShadow,
-          padding: 8,
-          maxHeight: '80vh',
-          overflowY: 'auto',
+          background: 'var(--c-surface)', border: '1px solid var(--c-rule)',
+          padding: '24px 0', minWidth: 280, maxWidth: 360, width: '100%',
         }}
       >
-        {SUPPORTED_LANGS.map((code) => {
-          const selected = code === current;
-          return (
-            <button
-              key={code}
-              onClick={() => onPick(code)}
-              style={{
-                width: '100%',
-                textAlign: 'start',
-                padding: '12px 14px',
-                borderRadius: 10,
-                border: 0,
-                background: selected ? palette.badgeBg : 'transparent',
-                color: selected ? palette.badgeText : palette.ink,
-                fontSize: '0.9375rem',
-                fontWeight: selected ? 600 : 500,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                transition: 'background-color 120ms ease',
-              }}
-            >
-              <span>{LANG_NATIVE[code]}</span>
-              {selected && <CheckIcon color={palette.primary} />}
-            </button>
-          );
-        })}
+        <div style={{
+          fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
+          fontSize: '.6875rem', letterSpacing: '.16em', textTransform: 'uppercase',
+          color: 'var(--c-mute)', textAlign: 'center', marginBottom: 14,
+        }}>
+          Language
+        </div>
+        {SUPPORTED_LANGS.map((code) => (
+          <button
+            key={code}
+            onClick={() => onPick(code as Language)}
+            style={{
+              display: 'block', width: '100%', textAlign: 'start',
+              background: 'transparent', border: 0,
+              padding: '10px 24px', cursor: 'pointer',
+              fontFamily: FONT_SERIF, fontStyle: 'italic',
+              fontSize: '1.05rem',
+              color: code === current ? 'var(--c-primary)' : 'var(--c-ink)',
+            }}
+          >
+            {LANG_NATIVE[code]}
+          </button>
+        ))}
       </motion.div>
     </motion.div>
   );
 }
 
-function CheckIcon({ color }: { color: string }) {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
-      <path d="M3 7.5 L6 10.5 L11.5 4" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-// ─── Donation modal ────────────────────────────────────────────────────────
+// ─── Donation modal ───────────────────────────────────────────────────────
 
 function DonationModal({
-  language, sessionsCompleted, palette, sansStack, monoStack, onClose,
+  language, sessionsCompleted, onClose,
 }: {
   language: Language;
   sessionsCompleted: number;
-  palette: Palette;
-  sansStack: string;
-  monoStack: string;
   onClose: () => void;
 }) {
   const t = translations[language];
+  const ask =
+    (translations[language] as unknown as { donationAsk?: string }).donationAsk ?? HOURS_KEYS.donationAsk;
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -1036,66 +766,40 @@ function DonationModal({
       exit={{ opacity: 0 }}
       onClick={onClose}
       style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 70,
-        display: 'grid',
-        placeItems: 'center',
-        padding: 24,
-        background: 'rgba(0,0,0,0.5)',
-        backdropFilter: 'blur(8px)',
-        fontFamily: sansStack,
+        position: 'fixed', inset: 0, zIndex: 70, display: 'grid', placeItems: 'center',
+        background: 'color-mix(in srgb, var(--c-bg) 80%, transparent)', padding: 24,
       }}
     >
-      <motion.div
-        initial={{ scale: 0.96, y: 12, opacity: 0 }}
-        animate={{ scale: 1, y: 0, opacity: 1 }}
-        exit={{ scale: 0.98, opacity: 0 }}
+      <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: '100%',
-          maxWidth: 380,
-          background: palette.cardBg,
-          border: `1px solid ${palette.cardBorder}`,
-          borderRadius: 20,
-          boxShadow: palette.cardShadow,
-          padding: 28,
-          textAlign: 'center',
+          background: 'var(--c-surface)', border: '1px solid var(--c-rule)',
+          padding: '36px 32px', maxWidth: 420, textAlign: 'center',
         }}
       >
-        <div
-          style={{
-            fontFamily: monoStack,
-            fontSize: '0.6875rem',
-            letterSpacing: '0.06em',
-            textTransform: 'uppercase',
-            color: palette.mute,
-            marginBottom: 14,
-          }}
-        >
-          {sessionsCompleted} · {(t.totalSessions ?? '').toLowerCase()}
+        <div style={{
+          fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
+          fontSize: '.625rem', letterSpacing: '.12em', textTransform: 'uppercase',
+          color: 'var(--c-mute)', marginBottom: 14,
+        }}>
+          {roman(sessionsCompleted)} · {t.totalSessions?.toLowerCase?.() ?? t.totalSessions}
         </div>
-        <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600, letterSpacing: '-0.015em' }}>
-          {t.amazingProgress}
-        </h3>
-        <p style={{ marginTop: 10, color: palette.mute, fontSize: '0.875rem', lineHeight: 1.5 }}>
-          {t.supportDevelopment}
-        </p>
-        <div style={{ marginTop: 24, display: 'flex', gap: 8, justifyContent: 'center' }}>
+        <div style={{
+          fontFamily: FONT_SERIF, fontStyle: 'italic', fontSize: '1.4rem',
+          color: 'var(--c-ink)', textWrap: 'balance' as never,
+        }}>
+          {ask}
+        </div>
+        <div className="flex gap-3 justify-center mt-7">
           <a
             href="https://buymeacoffee.com/shokawamoto"
             target="_blank"
             rel="noopener noreferrer"
             style={{
-              flex: 1,
-              padding: '12px 16px',
-              borderRadius: 12,
-              background: palette.primary,
-              color: '#ffffff',
-              textDecoration: 'none',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              textAlign: 'center',
+              fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
+              fontSize: '.6875rem', letterSpacing: '.16em', textTransform: 'uppercase',
+              background: 'var(--c-ink)', color: 'var(--c-bg)',
+              padding: '12px 22px', textDecoration: 'none',
             }}
           >
             {t.supportWithCoffee}
@@ -1103,21 +807,42 @@ function DonationModal({
           <button
             onClick={onClose}
             style={{
-              flex: 1,
-              padding: '12px 16px',
-              borderRadius: 12,
-              border: `1px solid ${palette.cardBorder}`,
-              background: 'transparent',
-              color: palette.ink,
-              fontSize: '0.875rem',
-              fontWeight: 500,
+              fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
+              fontSize: '.625rem', letterSpacing: '.12em', textTransform: 'uppercase',
+              color: 'var(--c-mute)', background: 'transparent', border: 0, padding: '12px',
               cursor: 'pointer',
             }}
           >
             {tKey(language, 'later')}
           </button>
         </div>
-      </motion.div>
+      </div>
     </motion.div>
+  );
+}
+
+// ─── Theme glyph ──────────────────────────────────────────────────────────
+
+function ThemeGlyph({ theme }: { theme: 'auto' | 'light' | 'dark' }) {
+  if (theme === 'dark')
+    return (
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <path d="M11 8a4 4 0 1 1-5-5 4 4 0 0 0 5 5z" stroke="currentColor" strokeWidth="1" />
+      </svg>
+    );
+  if (theme === 'light')
+    return (
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <circle cx="7" cy="7" r="2.4" stroke="currentColor" strokeWidth="1" />
+        <g stroke="currentColor" strokeWidth="1" strokeLinecap="round">
+          <path d="M7 1.5v1.2M7 11.3v1.2M1.5 7h1.2M11.3 7h1.2M3 3l.85.85M10.15 10.15l.85.85M3 11l.85-.85M10.15 3.85l.85-.85" />
+        </g>
+      </svg>
+    );
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+      <circle cx="7" cy="7" r="3.5" stroke="currentColor" strokeWidth="1" />
+      <path d="M7 3.5v7a3.5 3.5 0 0 0 0-7z" fill="currentColor" />
+    </svg>
   );
 }
