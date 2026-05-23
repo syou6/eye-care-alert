@@ -94,12 +94,18 @@ export function hourLabelFor(h: number): HourLabel {
   return "night";
 }
 
-// Roman numerals — for the session counter (editorial flourish, < XL safely).
+// Roman numerals — editorial flourish for the session counter.
+// Falls back to Arabic digits above 99 (CDXII etc. is unreadable as a counter).
 export function roman(n: number): string {
-  const map: [number, string][] = [[10,"X"],[9,"IX"],[5,"V"],[4,"IV"],[1,"I"]];
+  if (!Number.isFinite(n) || n <= 0) return "—";
+  if (n > 99) return String(n);
+  const map: [number, string][] = [
+    [100, "C"], [90, "XC"], [50, "L"], [40, "XL"],
+    [10, "X"], [9, "IX"], [5, "V"], [4, "IV"], [1, "I"],
+  ];
   let r = "", v = n;
   for (const [val, sym] of map) while (v >= val) { r += sym; v -= val; }
-  return r || "—";
+  return r;
 }
 
 // CJK + Devanagari want generous leading.

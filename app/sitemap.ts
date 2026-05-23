@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next';
 import { SUPPORTED_LANGS, LANG_TO_HREFLANG, DEFAULT_LANG } from '@/lib/i18n';
+import { PERSONA_SLUGS } from '@/lib/personas';
 
 const BASE_URL = 'https://eyecare.love';
 
@@ -32,5 +33,21 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.7,
   }));
 
-  return [...homeEntries, ...articleEntries];
+  const learnHubEntry: MetadataRoute.Sitemap = [
+    {
+      url: `${BASE_URL}/learn`,
+      lastModified: now,
+      changeFrequency: 'weekly',
+      priority: 0.8,
+    },
+  ];
+
+  const personaEntries: MetadataRoute.Sitemap = PERSONA_SLUGS.map((slug) => ({
+    url: `${BASE_URL}/for/${slug}`,
+    lastModified: now,
+    changeFrequency: 'monthly',
+    priority: 0.7,
+  }));
+
+  return [...homeEntries, ...learnHubEntry, ...articleEntries, ...personaEntries];
 }
