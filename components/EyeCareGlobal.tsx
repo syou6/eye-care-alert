@@ -6,14 +6,22 @@
 
 import { useEffect, useMemo, useReducer, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import AdSlot from '@/components/AdSlot';
+import HelpModal from '@/components/HelpModal';
+import WelcomeModal, { WELCOME_STORAGE_KEY } from '@/components/WelcomeModal';
 import { translations, HOURS_KEYS, tKey, type Language } from '@/lib/translations';
 import {
   effectivePalette, paletteVars,
   hourLabelFor, roman, isVigil, isRTL as hoursIsRTL, langLineHeight,
   FONT_SERIF,
 } from '@/lib/hours';
+import {
+  unlockAudio, chimeBreakStart, chimeBreakEnd, chimeWarning,
+  loadMuted, setMuted as persistMuted,
+} from '@/lib/audio';
+import { tickStreak, isFirstSessionToday, milestoneFor, loadStreak } from '@/lib/streak';
 
 const SESSION_SECONDS = 20 * 60;
 const BREAK_SECONDS = 20;
@@ -163,8 +171,14 @@ export default function EyeCareGlobal({
   const [language, setLanguage] = useState<Language>(initialLanguage ?? 'en');
   const [showLangPicker, setShowLangPicker] = useState(false);
   const [showDonation, setShowDonation] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
+  const [showAmbientHint, setShowAmbientHint] = useState(false);
+  const [muted, setMutedState] = useState(false);
+  const [streakChip, setStreakChip] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const lastDonationShownAt = useRef(0);
+  const warnedAt5sRef = useRef(false);
   const router = useRouter();
 
   const t = translations[language];
@@ -211,6 +225,19 @@ export default function EyeCareGlobal({
     if (!initialLanguage) setLanguage(detectLanguage(prefs.language));
     dispatch({ type: 'HYDRATE_SESSIONS', n: prefs.sessionsCompleted });
     lastDonationShownAt.current = prefs.sessionsCompleted;
+    setMutedState(loadMuted());
+    // First-run: show welcome OR ambient hint (mutually exclusive).
+    try {
+      const seenWelcome = window.localStorage.getItem(WELCOME_STORAGE_KEY) === '1';
+      if (!seenWelcome) {
+        setShowWelcome(true);
+      } else {
+        const seenHint = window.localStorage.getItem('eyeCareAmbientHintSeen') === '1';
+        if (!seenHint) setShowAmbientHint(true);
+      }
+    } catch {
+      // ignore
+    }
     setIsLoaded(true);
   }, [initialLanguage]);
 
@@ -245,10 +272,24 @@ export default function EyeCareGlobal({
     return () => document.removeEventListener('visibilitychange', onVis);
   }, []);
 
+  // Last-5s warning chime (work phase only).
+  useEffect(() => {
+    if (state.phase !== 'work' || state.endTime == null) {
+      warnedAt5sRef.current = false;
+      return;
+    }
+    if (state.remaining <= 5 && state.remaining > 0 && !warnedAt5sRef.current) {
+      warnedAt5sRef.current = true;
+      chimeWarning();
+    }
+    if (state.remaining > 5) warnedAt5sRef.current = false;
+  }, [state.phase, state.remaining, state.endTime]);
+
   // Phase transitions when remaining reaches zero.
   useEffect(() => {
     if (state.remaining !== 0) return;
     if (state.phase === 'work') {
+      chimeBreakStart();
       dispatch({ type: 'START_BREAK' });
       if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
         try {
@@ -262,28 +303,95 @@ export default function EyeCareGlobal({
         }
       }
       const next = state.sessionsCompleted + 1;
+      // Streak tracking — only on the day's first completed session.
+      if (isFirstSessionToday()) {
+        const { state: streak, advanced } = tickStreak();
+        if (advanced) {
+          const m = milestoneFor(streak.streak);
+          const copy =
+            m === 'first'
+              ? tKey(language, 'firstSessionToday')
+              : m === 'week'
+                ? tKey(language, 'streakWeek')
+                : m === 'month'
+                  ? tKey(language, 'streakMonth')
+                  : m === 'hundred'
+                    ? tKey(language, 'streakHundred')
+                    : tKey(language, 'streakDay').replace('{n}', String(streak.streak));
+          setStreakChip(copy);
+          window.setTimeout(() => setStreakChip(null), 8000);
+        }
+      }
       if (next % DONATION_INTERVAL === 0 && next !== lastDonationShownAt.current) {
         setShowDonation(true);
         lastDonationShownAt.current = next;
       }
     } else if (state.phase === 'break') {
+      chimeBreakEnd();
       dispatch({ type: 'END_BREAK' });
     }
-  }, [state.phase, state.remaining, state.sessionsCompleted, t.notification]);
+  }, [state.phase, state.remaining, state.sessionsCompleted, t.notification, language]);
 
   const handleStartPause = useCallback(() => {
     if (state.phase === 'idle') {
+      void unlockAudio();
       if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
         Notification.requestPermission().catch(() => {});
+      }
+      if (showAmbientHint) {
+        try {
+          window.localStorage.setItem('eyeCareAmbientHintSeen', '1');
+        } catch {
+          // ignore
+        }
+        setShowAmbientHint(false);
       }
       dispatch({ type: 'START' });
     } else {
       dispatch({ type: 'PAUSE' });
     }
-  }, [state.phase]);
+  }, [state.phase, showAmbientHint]);
 
   const handleReset = useCallback(() => dispatch({ type: 'RESET' }), []);
   const handleSkipBreak = useCallback(() => dispatch({ type: 'SKIP_BREAK' }), []);
+
+  const toggleMuted = useCallback(() => {
+    setMutedState((m) => {
+      const next = !m;
+      persistMuted(next);
+      return next;
+    });
+  }, []);
+
+  const handleWelcomeComplete = useCallback(() => {
+    try {
+      window.localStorage.setItem(WELCOME_STORAGE_KEY, '1');
+    } catch {
+      // ignore
+    }
+    setShowWelcome(false);
+  }, []);
+
+  // Keyboard shortcuts.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (showWelcome || showLangPicker || showHelp || showDonation) return;
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        handleStartPause();
+      } else if (e.key === 'r' || e.key === 'R') {
+        handleReset();
+      } else if (e.key === 'Escape') {
+        if (state.phase === 'break') handleSkipBreak();
+      } else if (e.key === '?') {
+        setShowHelp(true);
+      }
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [handleStartPause, handleReset, handleSkipBreak, state.phase, showWelcome, showLangPicker, showHelp, showDonation]);
 
   const cycleTheme = useCallback(() => {
     setTheme((x) => (x === 'auto' ? 'dark' : x === 'dark' ? 'light' : 'auto'));
@@ -340,6 +448,24 @@ export default function EyeCareGlobal({
           }}>{hourWord}</span>
         </div>
         <div className="flex items-center gap-3 shrink-0">
+          <button
+            onClick={() => setShowHelp(true)}
+            aria-label={tKey(language, 'helpLabel')}
+            style={{
+              fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
+              fontSize: '.75rem', color: 'var(--c-mute)',
+              background: 'transparent', border: 0, cursor: 'pointer', padding: '2px 6px',
+            }}
+          >
+            ?
+          </button>
+          <button
+            onClick={toggleMuted}
+            aria-label={muted ? tKey(language, 'soundOff') : tKey(language, 'soundOn')}
+            style={{ color: 'var(--c-mute)', background: 'transparent', border: 0, cursor: 'pointer', padding: 4 }}
+          >
+            <SoundGlyph muted={muted} />
+          </button>
           <button
             onClick={() => setShowLangPicker(true)}
             aria-label="Language"
@@ -439,6 +565,26 @@ export default function EyeCareGlobal({
           >
             {t.reset}
           </button>
+
+          <AnimatePresence>
+            {showAmbientHint && !isActive && !showBreak && (
+              <motion.p
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.5 }}
+                style={{
+                  marginTop: 18,
+                  maxWidth: 340,
+                  fontFamily: FONT_SERIF, fontStyle: 'italic',
+                  fontSize: '.875rem', color: 'var(--c-mute)',
+                  textAlign: 'center', lineHeight: lh,
+                }}
+              >
+                {tKey(language, 'ambientHint')}
+              </motion.p>
+            )}
+          </AnimatePresence>
         </div>
       </main>
 
@@ -456,18 +602,31 @@ export default function EyeCareGlobal({
             <span style={{ margin: '0 .5em', opacity: 0.5 }}>·</span>
             {t.totalSessions?.toLowerCase?.() ?? t.totalSessions}
           </div>
-          <a
-            href="https://buymeacoffee.com/shokawamoto"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
-              fontSize: '.625rem', letterSpacing: '.12em', textTransform: 'uppercase',
-              color: 'var(--c-mute)', textDecoration: 'none',
-            }}
-          >
-            {t.buyCoffee}
-          </a>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
+            <button
+              onClick={() => setShowHelp(true)}
+              style={{
+                fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
+                fontSize: '.625rem', letterSpacing: '.12em', textTransform: 'uppercase',
+                color: 'var(--c-mute)', background: 'transparent', border: 0,
+                padding: 0, cursor: 'pointer',
+              }}
+            >
+              {tKey(language, 'about')}
+            </button>
+            <a
+              href="https://buymeacoffee.com/shokawamoto"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
+                fontSize: '.625rem', letterSpacing: '.12em', textTransform: 'uppercase',
+                color: 'var(--c-mute)', textDecoration: 'none',
+              }}
+            >
+              {t.buyCoffee}
+            </a>
+          </div>
         </div>
         <nav style={{
           fontFamily: FONT_SERIF, fontStyle: 'italic', fontSize: '.78rem',
@@ -485,6 +644,13 @@ export default function EyeCareGlobal({
             {t.monitorLight}
           </a>
         </nav>
+        <div style={{
+          fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
+          fontSize: '.55rem', letterSpacing: '.12em', textTransform: 'uppercase',
+          color: 'var(--c-mute)', opacity: 0.6, textAlign: 'center',
+        }}>
+          {tKey(language, 'kbdHint')}
+        </div>
       </footer>
 
       {/* Break overlay */}
@@ -524,7 +690,64 @@ export default function EyeCareGlobal({
           />
         )}
       </AnimatePresence>
+
+      {/* Help modal */}
+      <AnimatePresence>
+        {showHelp && <HelpModal language={language} onClose={() => setShowHelp(false)} />}
+      </AnimatePresence>
+
+      {/* Welcome (first run) */}
+      <AnimatePresence>
+        {showWelcome && (
+          <WelcomeModal language={language} onComplete={handleWelcomeComplete} />
+        )}
+      </AnimatePresence>
+
+      {/* Streak chip */}
+      <AnimatePresence>
+        {streakChip && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 4 }}
+            transition={{ duration: 0.4 }}
+            style={{
+              position: 'fixed',
+              bottom: 'max(20px, env(safe-area-inset-bottom))',
+              insetInlineStart: 20,
+              zIndex: 45,
+              background: 'var(--c-surface)',
+              border: '1px solid var(--c-rule)',
+              padding: '10px 16px',
+              fontFamily: FONT_SERIF,
+              fontStyle: 'italic',
+              fontSize: '.875rem',
+              color: 'var(--c-ink)',
+              maxWidth: 'calc(100vw - 40px)',
+            }}
+          >
+            {streakChip}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
+  );
+}
+
+function SoundGlyph({ muted }: { muted: boolean }) {
+  if (muted) {
+    return (
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
+        <path d="M2 5h2l3-2.2v8.4L4 9H2V5Z" stroke="currentColor" strokeWidth="1" strokeLinejoin="round" />
+        <path d="M9.5 4.5l3 5M12.5 4.5l-3 5" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
+      <path d="M2 5h2l3-2.2v8.4L4 9H2V5Z" stroke="currentColor" strokeWidth="1" strokeLinejoin="round" />
+      <path d="M9.4 4.4a3.5 3.5 0 0 1 0 5.2M11 2.8a6 6 0 0 1 0 8.4" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+    </svg>
   );
 }
 

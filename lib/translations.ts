@@ -429,6 +429,32 @@ export const HOURS_KEYS = {
   installBody: 'Add to home screen for quick access.',
   later: 'Later',
   donationAsk: 'If this small thing is helping your eyes, consider supporting it.',
+  // Onboarding & UX
+  helpTitle: 'What is the 20-20-20 rule?',
+  helpBody:
+    'Every 20 minutes, look at something at least 20 feet (6 m) away for 20 seconds. Your ciliary muscle relaxes; your eyes recover.',
+  helpReadMore: 'Read the deep dive',
+  welcomeTitle1: 'A quiet 20-minute cycle',
+  welcomeBody1:
+    'When time is up, look at something far away for 20 seconds. We will chime and the screen will guide you.',
+  welcomeTitle2: 'Optional: browser notification',
+  welcomeBody2:
+    'We can ping you when the break starts, even when this tab is in the background. You can also leave it off.',
+  welcomeAllow: 'Allow notifications',
+  welcomeSkip: 'Not now',
+  welcomeBegin: 'Begin',
+  ambientHint: 'We will chime quietly every 20 minutes. Press space to start.',
+  firstSessionToday: 'First session of the day.',
+  streakDay: 'Day {n} — keep going.',
+  streakWeek: 'Seven days in a row.',
+  streakMonth: 'A month of small breaks. Your eyes thank you.',
+  streakHundred: 'One hundred days. Quietly remarkable.',
+  soundOn: 'Sound on',
+  soundOff: 'Sound off',
+  helpLabel: 'Help',
+  closeLabel: 'Close',
+  kbdHint: 'space — pause · R — reset · ⎋ — skip break · ? — help',
+  about: 'About',
   hourWords: {
     vigil: 'the small hours',
     dawn: 'dawn',
