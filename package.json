@@ -6,32 +6,23 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "analytics": "node scripts/analytics.mjs"
   },
   "dependencies": {
-    "@react-three/drei": "^10.6.1",
-    "@react-three/fiber": "^9.3.0",
-    "@tensorflow-models/face-landmarks-detection": "^1.0.6",
-    "@tensorflow/tfjs": "^4.22.0",
-    "canvas-confetti": "^1.9.3",
     "framer-motion": "^12.23.12",
-    "lucide-react": "^0.539.0",
-    "next": "15.4.6",
+    "next": "^15.5.18",
     "react": "19.1.0",
-    "react-confetti": "^6.4.0",
-    "react-dom": "19.1.0",
-    "react-hot-toast": "^2.5.2",
-    "socket.io-client": "^4.8.1",
-    "three": "^0.179.1",
-    "tone": "^15.1.22",
-    "web3": "^4.16.0"
+    "react-dom": "19.1.0"
   },
   "devDependencies": {
+    "@google-analytics/data": "^6.0.0",
     "@tailwindcss/postcss": "^4",
-    "@types/canvas-confetti": "^1.9.0",
+    "@tailwindcss/typography": "^0.5.19",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^17.4.2",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

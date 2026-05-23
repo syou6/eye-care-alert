@@ -39,6 +39,10 @@ Thumbs.db
 # Vercel
 .vercel
 
+# Secrets / analytics output
+.secrets/
+analytics-data/
+
 # Logs
 logs
 *.log
