@@ -413,3 +413,38 @@ export const languages = [
 ] as const;
 
 export type Language = keyof typeof translations;
+export type Lang = Language;
+
+// Editorial keys added in the "Hours" redesign. Provided as English fallback so
+// untranslated locales degrade gracefully. Per-locale overrides may be added
+// to the main translations object above without changing this map.
+export const HOURS_KEYS = {
+  openTimer: 'Open timer',
+  relatedReading: 'Related reading',
+  breatheIn: 'breathe in',
+  breatheHold: 'hold',
+  breatheOut: 'breathe out',
+  sponsoredBy: 'Sponsored',
+  install: 'Install',
+  installBody: 'Add to home screen for quick access.',
+  later: 'Later',
+  donationAsk: 'If this small thing is helping your eyes, consider supporting it.',
+  hourWords: {
+    vigil: 'the small hours',
+    dawn: 'dawn',
+    morning: 'morning',
+    midday: 'midday',
+    afternoon: 'afternoon',
+    evening: 'evening',
+    twilight: 'twilight',
+    night: 'night',
+  },
+} as const;
+
+type HoursKey = keyof typeof HOURS_KEYS;
+export function tKey(lang: Language, key: HoursKey): string {
+  const localized = (translations[lang] as unknown as Record<string, unknown>)?.[key];
+  if (typeof localized === 'string') return localized;
+  const fallback = HOURS_KEYS[key];
+  return typeof fallback === 'string' ? fallback : '';
+}
