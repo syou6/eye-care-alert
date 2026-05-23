@@ -13,7 +13,14 @@ const meta = {
 export const metadata: Metadata = {
   title: `${meta.title} | EYE CARE`,
   description: meta.description,
-  alternates: { canonical: `https://eyecare.love/learn/${meta.slug}` },
+  alternates: {
+    canonical: `https://eyecare.love/learn/${meta.slug}`,
+    languages: {
+      en: `https://eyecare.love/learn/${meta.slug}`,
+      ja: `https://eyecare.love/ja/learn/${meta.slug}`,
+      'x-default': `https://eyecare.love/learn/${meta.slug}`,
+    },
+  },
   openGraph: {
     title: meta.title,
     description: meta.description,

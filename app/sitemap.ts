@@ -26,12 +26,29 @@ export default function sitemap(): MetadataRoute.Sitemap {
     '20-20-2-rule',
     'screen-break-statistics',
   ];
-  const articleEntries: MetadataRoute.Sitemap = articleSlugs.map((slug) => ({
-    url: `${BASE_URL}/learn/${slug}`,
-    lastModified: now,
-    changeFrequency: 'monthly',
-    priority: 0.7,
-  }));
+  const articleEntries: MetadataRoute.Sitemap = articleSlugs.flatMap((slug) => {
+    const articleAlternates = {
+      en: `${BASE_URL}/learn/${slug}`,
+      ja: `${BASE_URL}/ja/learn/${slug}`,
+      'x-default': `${BASE_URL}/learn/${slug}`,
+    };
+    return [
+      {
+        url: `${BASE_URL}/learn/${slug}`,
+        lastModified: now,
+        changeFrequency: 'monthly' as const,
+        priority: 0.7,
+        alternates: { languages: articleAlternates },
+      },
+      {
+        url: `${BASE_URL}/ja/learn/${slug}`,
+        lastModified: now,
+        changeFrequency: 'monthly' as const,
+        priority: 0.7,
+        alternates: { languages: articleAlternates },
+      },
+    ];
+  });
 
   const learnHubEntry: MetadataRoute.Sitemap = [
     {
