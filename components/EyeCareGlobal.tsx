@@ -642,22 +642,6 @@ export default function EyeCareGlobal({
             </a>
           </div>
         </div>
-        <nav style={{
-          fontFamily: FONT_SERIF, fontStyle: 'italic', fontSize: '.78rem',
-          color: 'var(--c-mute)', textAlign: 'center',
-        }}>
-          <a href="https://amzn.to/blulight-glasses" target="_blank" rel="sponsored noopener noreferrer" style={affLink}>
-            {t.blueLightGlasses}
-          </a>
-          <span style={{ opacity: 0.4, margin: '0 8px' }}>·</span>
-          <a href="https://amzn.to/eye-drops" target="_blank" rel="sponsored noopener noreferrer" style={affLink}>
-            {t.eyeDrops}
-          </a>
-          <span style={{ opacity: 0.4, margin: '0 8px' }}>·</span>
-          <a href="https://amzn.to/monitor-light" target="_blank" rel="sponsored noopener noreferrer" style={affLink}>
-            {t.monitorLight}
-          </a>
-        </nav>
         <div style={{
           fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
           fontSize: '.55rem', letterSpacing: '.12em', textTransform: 'uppercase',
