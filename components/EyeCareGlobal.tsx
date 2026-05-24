@@ -618,7 +618,7 @@ export default function EyeCareGlobal({
               onClick={() => setShowHelp(true)}
               style={footerLinkStyle}
             >
-              {tKey(language, 'about')}
+              Help
             </button>
             <Link href="/about" style={footerLinkStyle}>About</Link>
             <Link href="/stats" style={footerLinkStyle}>Stats</Link>
