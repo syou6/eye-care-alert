@@ -61,3 +61,30 @@ export function milestoneFor(streak: number): StreakMilestone {
   if (streak === 1) return 'first';
   return null;
 }
+
+// Daily session history — incremented every completed work session.
+// Used by /stats. Capped at 730 days of retained data to keep localStorage
+// well under quota.
+const HISTORY_KEY = 'eyeCareDailyHistory';
+const RETAIN_DAYS = 730;
+
+export function bumpDailySession() {
+  if (typeof window === 'undefined') return;
+  try {
+    const raw = window.localStorage.getItem(HISTORY_KEY);
+    const parsed: Record<string, number> =
+      raw && typeof JSON.parse(raw) === 'object' ? JSON.parse(raw) : {};
+    const today = todayKey();
+    parsed[today] = (parsed[today] ?? 0) + 1;
+
+    // Trim entries older than RETAIN_DAYS.
+    const cutoff = Date.now() - RETAIN_DAYS * 86_400_000;
+    for (const k of Object.keys(parsed)) {
+      const t = Date.parse(k);
+      if (!Number.isNaN(t) && t < cutoff) delete parsed[k];
+    }
+    window.localStorage.setItem(HISTORY_KEY, JSON.stringify(parsed));
+  } catch {
+    // quota / parse error — silent
+  }
+}

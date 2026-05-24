@@ -23,7 +23,53 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans, "Geist Sans"),
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto,
+    "Helvetica Neue", Arial,
+    /* CJK fallback — uses installed system fonts, no bundle cost */
+    "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Meiryo UI",
+    "Apple SD Gothic Neo", "Malgun Gothic", "Microsoft YaHei UI",
+    /* Devanagari fallback */
+    "Noto Sans Devanagari", "Mangal",
+    /* Arabic fallback */
+    "Geeza Pro", "Segoe UI Arabic",
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Respect reduced-motion preference at the CSS level too — covers things
+   framer-motion's MotionConfig does not (CSS transitions on bg / color). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Lang-specific tuning. Browsers expose the html[lang] attr; tighten line
+   height for CJK and loosen for Devanagari/Arabic where needed. */
+html[lang="ja"] body,
+html[lang="zh"] body,
+html[lang="ko"] body {
+  line-height: 1.7;
+}
+html[lang="hi"] body {
+  line-height: 1.8;
+}
+html[lang="ar"] body {
+  line-height: 1.8;
+}
+
+/* Focus ring — visible, accessible, brand-friendly */
+:focus-visible {
+  outline: 2px solid #c47d56;
+  outline-offset: 2px;
 }
 
 /* Vercel/Next.jsのデプロイメントバッジを非表示 */

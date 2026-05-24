@@ -5,7 +5,7 @@
 // integration; only the JSX render tree adopts the new design language.
 
 import { useEffect, useMemo, useReducer, useRef, useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, MotionConfig } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import AdSlot from '@/components/AdSlot';
@@ -21,7 +21,7 @@ import {
   unlockAudio, chimeBreakStart, chimeBreakEnd, chimeWarning,
   loadMuted, setMuted as persistMuted,
 } from '@/lib/audio';
-import { tickStreak, isFirstSessionToday, milestoneFor, loadStreak } from '@/lib/streak';
+import { tickStreak, isFirstSessionToday, milestoneFor, loadStreak, bumpDailySession } from '@/lib/streak';
 
 const SESSION_SECONDS = 20 * 60;
 const BREAK_SECONDS = 20;
@@ -290,6 +290,7 @@ export default function EyeCareGlobal({
     if (state.remaining !== 0) return;
     if (state.phase === 'work') {
       chimeBreakStart();
+      bumpDailySession();
       dispatch({ type: 'START_BREAK' });
       if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
         try {
@@ -414,6 +415,7 @@ export default function EyeCareGlobal({
     hourLabel;
 
   return (
+    <MotionConfig reducedMotion="user">
     <div
       dir={dir}
       style={{
@@ -610,6 +612,8 @@ export default function EyeCareGlobal({
               {tKey(language, 'about')}
             </button>
             <Link href="/about" style={footerLinkStyle}>About</Link>
+            <Link href="/stats" style={footerLinkStyle}>Stats</Link>
+            <Link href="/learn" style={footerLinkStyle}>Learn</Link>
             <Link href="/privacy" style={footerLinkStyle}>Privacy</Link>
             <Link href="/terms" style={footerLinkStyle}>Terms</Link>
             <a
@@ -739,6 +743,7 @@ export default function EyeCareGlobal({
         )}
       </AnimatePresence>
     </div>
+    </MotionConfig>
   );
 }
 
