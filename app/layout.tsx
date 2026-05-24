@@ -24,7 +24,8 @@ const GA_ID = process.env.NEXT_PUBLIC_GA_ID ?? "G-5EEDHCB7VD";
 const GSC_VERIFICATION = process.env.NEXT_PUBLIC_GSC_VERIFICATION;
 const PLAUSIBLE_DOMAIN = process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN; // e.g. "eyecare.love"
 const PLAUSIBLE_SRC =
-  process.env.NEXT_PUBLIC_PLAUSIBLE_SRC ?? "https://plausible.io/js/script.js";
+  process.env.NEXT_PUBLIC_PLAUSIBLE_SRC ?? "https://plausible.io/js/script.outbound-links.js";
+const CLARITY_PROJECT = process.env.NEXT_PUBLIC_CLARITY_PROJECT;
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -157,12 +158,22 @@ export default async function RootLayout({
           `}
         </Script>
         {PLAUSIBLE_DOMAIN && (
-          <Script
-            defer
-            data-domain={PLAUSIBLE_DOMAIN}
-            src={PLAUSIBLE_SRC}
-            strategy="afterInteractive"
-          />
+          <>
+            <Script
+              defer
+              data-domain={PLAUSIBLE_DOMAIN}
+              src={PLAUSIBLE_SRC}
+              strategy="afterInteractive"
+            />
+            <Script id="plausible-init" strategy="afterInteractive">
+              {`window.plausible = window.plausible || function () { (window.plausible.q = window.plausible.q || []).push(arguments); };`}
+            </Script>
+          </>
+        )}
+        {CLARITY_PROJECT && (
+          <Script id="ms-clarity" strategy="afterInteractive">
+            {`(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);})(window,document,"clarity","script","${CLARITY_PROJECT}");`}
+          </Script>
         )}
       </body>
     </html>

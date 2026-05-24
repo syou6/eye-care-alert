@@ -22,6 +22,7 @@ import {
   loadMuted, setMuted as persistMuted,
 } from '@/lib/audio';
 import { tickStreak, isFirstSessionToday, milestoneFor, loadStreak, bumpDailySession } from '@/lib/streak';
+import { track } from '@/lib/analytics';
 
 const SESSION_SECONDS = 20 * 60;
 const BREAK_SECONDS = 20;
@@ -347,14 +348,22 @@ export default function EyeCareGlobal({
         }
         setShowAmbientHint(false);
       }
+      track('timer_start', { language });
       dispatch({ type: 'START' });
     } else {
+      track('timer_pause', { language });
       dispatch({ type: 'PAUSE' });
     }
-  }, [state.phase, showAmbientHint]);
+  }, [state.phase, showAmbientHint, language]);
 
-  const handleReset = useCallback(() => dispatch({ type: 'RESET' }), []);
-  const handleSkipBreak = useCallback(() => dispatch({ type: 'SKIP_BREAK' }), []);
+  const handleReset = useCallback(() => {
+    track('timer_reset', { language });
+    dispatch({ type: 'RESET' });
+  }, [language]);
+  const handleSkipBreak = useCallback(() => {
+    track('break_skipped', { language });
+    dispatch({ type: 'SKIP_BREAK' });
+  }, [language]);
 
   const toggleMuted = useCallback(() => {
     setMutedState((m) => {
