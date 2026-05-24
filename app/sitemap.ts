@@ -66,5 +66,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.7,
   }));
 
-  return [...homeEntries, ...learnHubEntry, ...articleEntries, ...personaEntries];
+  const utilityEntries: MetadataRoute.Sitemap = ['about', 'privacy', 'terms'].map((slug) => ({
+    url: `${BASE_URL}/${slug}`,
+    lastModified: now,
+    changeFrequency: 'yearly',
+    priority: 0.4,
+  }));
+
+  return [
+    ...homeEntries,
+    ...learnHubEntry,
+    ...articleEntries,
+    ...personaEntries,
+    ...utilityEntries,
+  ];
 }

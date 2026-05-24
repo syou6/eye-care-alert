@@ -602,27 +602,28 @@ export default function EyeCareGlobal({
             <span style={{ margin: '0 .5em', opacity: 0.5 }}>·</span>
             {t.totalSessions?.toLowerCase?.() ?? t.totalSessions}
           </div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             <button
               onClick={() => setShowHelp(true)}
-              style={{
-                fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
-                fontSize: '.625rem', letterSpacing: '.12em', textTransform: 'uppercase',
-                color: 'var(--c-mute)', background: 'transparent', border: 0,
-                padding: 0, cursor: 'pointer',
-              }}
+              style={footerLinkStyle}
             >
               {tKey(language, 'about')}
             </button>
+            <Link href="/about" style={footerLinkStyle}>About</Link>
+            <Link href="/privacy" style={footerLinkStyle}>Privacy</Link>
+            <Link href="/terms" style={footerLinkStyle}>Terms</Link>
+            <a
+              href="/eye-care.ics"
+              download
+              style={footerLinkStyle}
+            >
+              .ics
+            </a>
             <a
               href="https://buymeacoffee.com/shokawamoto"
               target="_blank"
               rel="noopener noreferrer"
-              style={{
-                fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
-                fontSize: '.625rem', letterSpacing: '.12em', textTransform: 'uppercase',
-                color: 'var(--c-mute)', textDecoration: 'none',
-              }}
+              style={footerLinkStyle}
             >
               {t.buyCoffee}
             </a>
@@ -763,6 +764,13 @@ const affLink: React.CSSProperties = {
   textDecoration: 'none',
   borderBottom: '1px dotted var(--c-rule)',
   paddingBottom: 1,
+};
+
+const footerLinkStyle: React.CSSProperties = {
+  fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
+  fontSize: '.625rem', letterSpacing: '.12em', textTransform: 'uppercase',
+  color: 'var(--c-mute)', textDecoration: 'none',
+  background: 'transparent', border: 0, padding: 0, cursor: 'pointer',
 };
 
 // ─── Break overlay ────────────────────────────────────────────────────────
