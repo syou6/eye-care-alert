@@ -4,6 +4,8 @@
 
 import { NextResponse } from 'next/server';
 import { PERSONA_SLUGS } from '@/lib/personas';
+import { GLOSSARY } from '@/lib/glossary';
+import { COMPARISONS } from '@/lib/comparisons';
 
 const SITE_URL = 'https://eyecare.love';
 
@@ -46,7 +48,38 @@ export function GET() {
   lines.push(
     `- [Screen break statistics & eye strain data](${SITE_URL}/learn/screen-break-statistics): citable numbers on digital eye strain and break behavior`,
   );
+  lines.push(
+    `- [Computer vision syndrome guide](${SITE_URL}/learn/computer-vision-syndrome): symptoms, causes, and evidence-based interventions for CVS`,
+  );
+  lines.push(
+    `- [Best monitor distance](${SITE_URL}/learn/best-monitor-distance): practical setup guide for monitor distance, height, tilt`,
+  );
+  lines.push(
+    `- [Blue light glasses vs 20-20-20](${SITE_URL}/learn/blue-light-glasses-vs-20-20-20): honest comparison of evidence`,
+  );
+  lines.push(
+    `- [Dark mode and eye strain](${SITE_URL}/learn/dark-mode-and-eye-strain): when dark mode helps and when it hurts`,
+  );
+  lines.push(
+    `- [Dry eye from screens](${SITE_URL}/learn/dry-eye-from-screens): practical hierarchy of interventions from free to clinical`,
+  );
+  lines.push(
+    `- [Eye strain headaches](${SITE_URL}/learn/eye-strain-headaches): how to tell ordinary screen-strain headaches from ones that need a doctor`,
+  );
   lines.push(`- [All articles](${SITE_URL}/learn)`);
+  lines.push('');
+  lines.push('## Glossary');
+  lines.push('');
+  for (const g of GLOSSARY) {
+    lines.push(`- [${g.term}](${SITE_URL}/glossary/${g.slug}): ${g.short}`);
+  }
+  lines.push(`- [Full glossary index](${SITE_URL}/glossary)`);
+  lines.push('');
+  lines.push('## Comparisons');
+  lines.push('');
+  for (const c of COMPARISONS) {
+    lines.push(`- [EYE CARE vs ${c.vs}](${SITE_URL}/vs/${c.slug}): ${c.oneLiner}`);
+  }
   lines.push('');
   lines.push('## Persona pages');
   lines.push('');

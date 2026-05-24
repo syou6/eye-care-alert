@@ -5,13 +5,6 @@ const SITE_URL = 'https://eyecare.love';
 
 const ARTICLES = [
   {
-    slug: '20-20-20-rule-for-kids',
-    title: 'The 20-20-20 rule for kids',
-    description:
-      'A parent\'s guide to screen time, the 20-20-20 rule, and how to slow childhood myopia.',
-    minutes: 6,
-  },
-  {
     slug: 'does-the-20-20-20-rule-work',
     title: 'Does the 20-20-20 rule actually work?',
     description:
@@ -19,10 +12,59 @@ const ARTICLES = [
     minutes: 7,
   },
   {
+    slug: 'computer-vision-syndrome',
+    title: 'Computer vision syndrome: symptoms, causes, and what helps',
+    description:
+      'CVS affects 50-90% of regular computer users. The mechanism, the symptoms, and the evidence-based interventions that actually move the needle.',
+    minutes: 7,
+  },
+  {
+    slug: '20-20-20-rule-for-kids',
+    title: 'The 20-20-20 rule for kids',
+    description:
+      'A parent\'s guide to screen time, the 20-20-20 rule, and how to slow childhood myopia.',
+    minutes: 6,
+  },
+  {
     slug: '20-20-2-rule',
     title: 'The 20-20-2 rule (kids + outdoor time)',
     description:
       'The pediatric upgrade: 2 hours of outdoor time daily, on top of 20-20-20 screen breaks.',
+    minutes: 6,
+  },
+  {
+    slug: 'best-monitor-distance',
+    title: 'Best monitor distance for eye health',
+    description:
+      'Arm\'s length, top of screen at eye level — and why getting it right reduces eye fatigue more than any other ergonomic change.',
+    minutes: 5,
+  },
+  {
+    slug: 'blue-light-glasses-vs-20-20-20',
+    title: 'Blue light glasses vs the 20-20-20 rule',
+    description:
+      'The honest comparison: blue light glasses have thin evidence, the 20-20-20 rule costs nothing and has stronger research support.',
+    minutes: 6,
+  },
+  {
+    slug: 'dark-mode-and-eye-strain',
+    title: 'Does dark mode reduce eye strain? An honest answer',
+    description:
+      'Dark mode helps in dim environments and hurts in bright ones. The right answer depends on lighting, task, and age.',
+    minutes: 5,
+  },
+  {
+    slug: 'dry-eye-from-screens',
+    title: 'Dry eye from screens: why it happens and what helps',
+    description:
+      'Blink rate drops ~60% during screen use, which drives most digital dry-eye symptoms. The practical fix hierarchy, from free to clinical.',
+    minutes: 5,
+  },
+  {
+    slug: 'eye-strain-headaches',
+    title: 'Eye strain headaches: when they are normal and when to worry',
+    description:
+      'Most afternoon screen headaches are tension or eye-strain headaches that resolve with breaks. Some warrant a doctor — here is how to tell.',
     minutes: 6,
   },
   {
