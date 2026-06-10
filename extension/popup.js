@@ -16,7 +16,7 @@ async function refresh() {
     const remaining = 20 * 60 - elapsedSec;
     $time.textContent = format(remaining);
     $state.textContent = 'tracking';
-    $start.textContent = 'Pause';
+    $start.textContent = 'Restart';
     $start.classList.remove('primary');
   } else if (data.state === 'break') {
     $time.textContent = 'Break';
@@ -34,7 +34,7 @@ async function refresh() {
 $start.addEventListener('click', async () => {
   const data = await chrome.storage.local.get('state');
   if (data.state === 'work') {
-    chrome.runtime.sendMessage({ type: 'STOP' });
+    chrome.runtime.sendMessage({ type: 'RESTART' });
   } else if (data.state === 'break') {
     chrome.runtime.sendMessage({ type: 'SKIP_BREAK' });
   } else {
