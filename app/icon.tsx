@@ -9,6 +9,8 @@ export const size = {
 
 export const contentType = 'image/png';
 
+// Brand mark: ink-stroke almond eye with terracotta iris on paper,
+// matching the editorial palette in lib/hours.ts and opengraph-image.tsx.
 export default function Icon() {
   return new ImageResponse(
     (
@@ -19,35 +21,24 @@ export default function Icon() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: '#A8D5C7',
-          borderRadius: '50%',
+          background: '#f5f1ea',
         }}
       >
         <svg
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
+          width="32"
+          height="32"
+          viewBox="0 0 32 32"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
         >
-          {/* Eye Outline */}
           <path
-            d="M12 5C7 5 3 12 3 12C3 12 7 19 12 19C17 19 21 12 21 12C21 12 17 5 12 5Z"
-            stroke="#1F3A5F"
-            strokeWidth="2"
-            strokeLinecap="round"
+            d="M3.5 16C9 7.5 23 7.5 28.5 16C23 24.5 9 24.5 3.5 16Z"
+            stroke="#1c1b18"
+            strokeWidth="1.8"
             strokeLinejoin="round"
-            fill="#FFFFFF"
+            fill="none"
           />
-          
-          {/* Iris */}
-          <circle cx="12" cy="12" r="4" fill="#5B8DBE" />
-          
-          {/* Pupil */}
-          <circle cx="12" cy="12" r="2" fill="#1F3A5F" />
-          
-          {/* Light Reflection */}
-          <circle cx="11" cy="11" r="1" fill="#FFFFFF" opacity="0.9" />
+          <circle cx="16" cy="16" r="4.8" fill="#c47d56" />
         </svg>
       </div>
     ),

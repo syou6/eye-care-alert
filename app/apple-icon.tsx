@@ -9,6 +9,9 @@ export const size = {
 
 export const contentType = 'image/png';
 
+// Brand mark: ink-stroke almond eye with terracotta iris on paper,
+// matching the editorial palette in lib/hours.ts and opengraph-image.tsx.
+// iOS applies its own corner mask, so the background is full bleed.
 export default function Icon() {
   return new ImageResponse(
     (
@@ -19,45 +22,24 @@ export default function Icon() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: '#A8D5C7',
-          borderRadius: '25%',
+          background: '#f5f1ea',
         }}
       >
         <svg
-          width="140"
-          height="140"
-          viewBox="0 0 140 140"
+          width="180"
+          height="180"
+          viewBox="0 0 32 32"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
         >
-          {/* Eye Outline */}
           <path
-            d="M70 20C40 20 15 70 15 70C15 70 40 120 70 120C100 120 125 70 125 70C125 70 100 20 70 20Z"
-            stroke="#1F3A5F"
-            strokeWidth="8"
-            strokeLinecap="round"
+            d="M4.5 16C9.5 8.2 22.5 8.2 27.5 16C22.5 23.8 9.5 23.8 4.5 16Z"
+            stroke="#1c1b18"
+            strokeWidth="1.6"
             strokeLinejoin="round"
-            fill="#FFFFFF"
+            fill="none"
           />
-          
-          {/* Iris */}
-          <circle cx="70" cy="70" r="28" fill="#5B8DBE" />
-          
-          {/* Pupil */}
-          <circle cx="70" cy="70" r="14" fill="#1F3A5F" />
-          
-          {/* Light Reflection */}
-          <circle cx="62" cy="62" r="7" fill="#FFFFFF" opacity="0.9" />
-          
-          {/* Radiating Lines */}
-          <path d="M70 5L70 15" stroke="#1F3A5F" strokeWidth="6" strokeLinecap="round" />
-          <path d="M70 125L70 135" stroke="#1F3A5F" strokeWidth="6" strokeLinecap="round" />
-          <path d="M20 20L30 30" stroke="#1F3A5F" strokeWidth="6" strokeLinecap="round" />
-          <path d="M110 110L120 120" stroke="#1F3A5F" strokeWidth="6" strokeLinecap="round" />
-          <path d="M5 70L15 70" stroke="#1F3A5F" strokeWidth="6" strokeLinecap="round" />
-          <path d="M125 70L135 70" stroke="#1F3A5F" strokeWidth="6" strokeLinecap="round" />
-          <path d="M20 120L30 110" stroke="#1F3A5F" strokeWidth="6" strokeLinecap="round" />
-          <path d="M110 30L120 20" stroke="#1F3A5F" strokeWidth="6" strokeLinecap="round" />
+          <circle cx="16" cy="16" r="4.4" fill="#c47d56" />
         </svg>
       </div>
     ),
