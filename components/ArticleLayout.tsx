@@ -5,6 +5,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
+import AdSlot from '@/components/AdSlot';
 import { translations, HOURS_KEYS, tKey, type Language } from '@/lib/translations';
 import {
   effectivePalette, paletteVars, hourLabelFor, isVigil, isRTL as hoursIsRTL,
@@ -23,6 +24,10 @@ type ArticleMeta = {
 type RelatedLink = { href: string; title: string };
 
 const SITE_URL = 'https://eyecare.love';
+
+// Article-bottom ad placement. Renders nothing until the AdSense unit is
+// created and its slot ID set in NEXT_PUBLIC_ADSENSE_ARTICLE_SLOT.
+const ARTICLE_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_ARTICLE_SLOT ?? '';
 
 const DEFAULT_RELATED: RelatedLink[] = [
   { href: '/learn/20-20-20-rule-for-kids', title: 'The 20-20-20 rule for kids' },
@@ -190,6 +195,19 @@ export default function ArticleLayout({
         >
           {children}
         </div>
+
+        {ARTICLE_AD_SLOT && (
+          <div style={{ borderTop: '1px solid var(--c-rule)', marginTop: 40, paddingTop: 16 }}>
+            <div style={{
+              fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
+              fontSize: '.625rem', letterSpacing: '.12em', textTransform: 'uppercase',
+              color: 'var(--c-mute)', marginBottom: 10,
+            }}>
+              Sponsored
+            </div>
+            <AdSlot slot={ARTICLE_AD_SLOT} format="auto" reservedHeight={120} />
+          </div>
+        )}
 
         <Link
           href={`/${lang}`}
