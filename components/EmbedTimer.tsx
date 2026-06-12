@@ -12,6 +12,7 @@ import {
   isRTL as hoursIsRTL, langLineHeight, FONT_SERIF,
 } from '@/lib/hours';
 import { unlockAudio, chimeBreakStart, chimeBreakEnd, chimeWarning } from '@/lib/audio';
+import { startTicker } from '@/lib/ticker';
 
 const SESSION_SECONDS = 20 * 60;
 const BREAK_SECONDS = 20;
@@ -111,8 +112,8 @@ export default function EmbedTimer({ lang }: { lang: Language }) {
     if (state.endTime == null) return;
     const tick = () => dispatch({ type: 'TICK', now: Date.now() });
     tick();
-    const id = window.setInterval(tick, 250);
-    return () => window.clearInterval(id);
+    const ticker = startTicker(tick);
+    return () => ticker.stop();
   }, [state.endTime]);
 
   useEffect(() => {

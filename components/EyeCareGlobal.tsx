@@ -21,8 +21,10 @@ import {
   unlockAudio, chimeBreakStart, chimeBreakEnd, chimeWarning,
   loadMuted, setMuted as persistMuted,
 } from '@/lib/audio';
-import { tickStreak, isFirstSessionToday, milestoneFor, loadStreak, bumpDailySession } from '@/lib/streak';
+import { tickStreak, isFirstSessionToday, milestoneFor, bumpDailySession } from '@/lib/streak';
 import { isPro } from '@/lib/pro';
+import { showBreakNotification } from '@/lib/notify';
+import { startTicker } from '@/lib/ticker';
 import { track } from '@/lib/analytics';
 
 const SESSION_SECONDS = 20 * 60;
@@ -317,12 +319,14 @@ export default function EyeCareGlobal({
   }, [dir, language]);
 
   // Single ticker — recomputes remaining from endTime, no drift.
+  // Runs in a Web Worker so hidden-tab timer throttling can't delay the
+  // chime/notification (main-thread intervals drop to ~1/min when hidden).
   useEffect(() => {
     if (state.endTime == null) return;
     const tick = () => dispatch({ type: 'TICK', now: Date.now() });
     tick();
-    const id = window.setInterval(tick, 250);
-    return () => window.clearInterval(id);
+    const ticker = startTicker(tick);
+    return () => ticker.stop();
   }, [state.endTime]);
 
   useEffect(() => {
@@ -355,17 +359,10 @@ export default function EyeCareGlobal({
       chimeBreakStart();
       bumpDailySession();
       dispatch({ type: 'START_BREAK' });
-      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-        try {
-          new Notification(t.notification.title, {
-            body: t.notification.body,
-            tag: 'eye-care-break',
-            icon: '/icon.svg',
-          });
-        } catch {
-          // some browsers throw
-        }
-      }
+      void showBreakNotification({
+        title: t.notification.title,
+        body: t.notification.body,
+      });
       const next = state.sessionsCompleted + 1;
       // Streak tracking — only on the day's first completed session.
       if (isFirstSessionToday()) {
@@ -849,13 +846,6 @@ function SoundGlyph({ muted }: { muted: boolean }) {
     </svg>
   );
 }
-
-const affLink: React.CSSProperties = {
-  color: 'var(--c-mute)',
-  textDecoration: 'none',
-  borderBottom: '1px dotted var(--c-rule)',
-  paddingBottom: 1,
-};
 
 const footerLinkStyle: React.CSSProperties = {
   fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
