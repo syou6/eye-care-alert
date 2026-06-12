@@ -22,6 +22,7 @@ import {
   loadMuted, setMuted as persistMuted,
 } from '@/lib/audio';
 import { tickStreak, isFirstSessionToday, milestoneFor, loadStreak, bumpDailySession } from '@/lib/streak';
+import { isPro } from '@/lib/pro';
 import { track } from '@/lib/analytics';
 
 const SESSION_SECONDS = 20 * 60;
@@ -30,6 +31,12 @@ const STORAGE_KEY = 'eyeCarePreferences';
 const THEME_STORAGE_KEY = 'hours-theme';
 const DONATION_INTERVAL = 10;
 const BREAK_AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_BREAK_SLOT ?? '';
+// Stripe Payment Link for the one-time Pro purchase. Interval controls stay
+// hidden until this is configured (or the visitor already owns Pro).
+const PRO_PAYMENT_LINK = process.env.NEXT_PUBLIC_PRO_PAYMENT_LINK ?? '';
+// Pro rhythm presets (seconds).
+const WORK_PRESETS = [15 * 60, 20 * 60, 25 * 60, 30 * 60, 45 * 60] as const;
+const BREAK_PRESETS = [20, 30, 60] as const;
 const SUPPORTED_LANGS = [
   'en', 'ja', 'zh', 'ko', 'es', 'fr', 'de', 'pt', 'ru', 'ar', 'hi', 'it',
 ] as const;
@@ -51,6 +58,8 @@ type TimerState = {
   remaining: number;
   workRemaining: number;
   sessionsCompleted: number;
+  workSeconds: number;
+  breakSeconds: number;
 };
 
 const initialState: TimerState = {
@@ -59,6 +68,8 @@ const initialState: TimerState = {
   remaining: SESSION_SECONDS,
   workRemaining: SESSION_SECONDS,
   sessionsCompleted: 0,
+  workSeconds: SESSION_SECONDS,
+  breakSeconds: BREAK_SECONDS,
 };
 
 type Action =
@@ -69,12 +80,13 @@ type Action =
   | { type: 'START_BREAK' }
   | { type: 'END_BREAK' }
   | { type: 'SKIP_BREAK' }
-  | { type: 'HYDRATE_SESSIONS'; n: number };
+  | { type: 'HYDRATE_SESSIONS'; n: number }
+  | { type: 'SET_INTERVALS'; workSeconds: number; breakSeconds: number };
 
 function reducer(state: TimerState, action: Action): TimerState {
   switch (action.type) {
     case 'START': {
-      const remaining = state.workRemaining > 0 ? state.workRemaining : SESSION_SECONDS;
+      const remaining = state.workRemaining > 0 ? state.workRemaining : state.workSeconds;
       return {
         ...state,
         phase: 'work',
@@ -86,7 +98,14 @@ function reducer(state: TimerState, action: Action): TimerState {
     case 'PAUSE':
       return { ...state, phase: 'idle', endTime: null, workRemaining: state.remaining };
     case 'RESET':
-      return { ...initialState, sessionsCompleted: state.sessionsCompleted };
+      return {
+        ...initialState,
+        sessionsCompleted: state.sessionsCompleted,
+        workSeconds: state.workSeconds,
+        breakSeconds: state.breakSeconds,
+        remaining: state.workSeconds,
+        workRemaining: state.workSeconds,
+      };
     case 'TICK': {
       if (state.endTime == null) return state;
       const remaining = Math.max(0, Math.ceil((state.endTime - action.now) / 1000));
@@ -97,9 +116,9 @@ function reducer(state: TimerState, action: Action): TimerState {
       return {
         ...state,
         phase: 'break',
-        endTime: Date.now() + BREAK_SECONDS * 1000,
-        remaining: BREAK_SECONDS,
-        workRemaining: SESSION_SECONDS,
+        endTime: Date.now() + state.breakSeconds * 1000,
+        remaining: state.breakSeconds,
+        workRemaining: state.workSeconds,
         sessionsCompleted: state.sessionsCompleted + 1,
       };
     case 'END_BREAK':
@@ -107,12 +126,23 @@ function reducer(state: TimerState, action: Action): TimerState {
       return {
         ...state,
         phase: 'work',
-        endTime: Date.now() + SESSION_SECONDS * 1000,
-        remaining: SESSION_SECONDS,
-        workRemaining: SESSION_SECONDS,
+        endTime: Date.now() + state.workSeconds * 1000,
+        remaining: state.workSeconds,
+        workRemaining: state.workSeconds,
       };
     case 'HYDRATE_SESSIONS':
       return { ...state, sessionsCompleted: action.n };
+    case 'SET_INTERVALS':
+      // Changing the rhythm resets the current cycle to idle.
+      return {
+        ...state,
+        phase: 'idle',
+        endTime: null,
+        workSeconds: action.workSeconds,
+        breakSeconds: action.breakSeconds,
+        remaining: action.workSeconds,
+        workRemaining: action.workSeconds,
+      };
     default:
       return state;
   }
@@ -128,10 +158,23 @@ function detectLanguage(saved: Language | null): Language {
 type SavedPrefs = {
   sessionsCompleted: number;
   language: Language | null;
+  workSeconds: number;
+  breakSeconds: number;
 };
 
+function clampInterval(value: unknown, fallback: number, min: number, max: number): number {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? Math.min(max, Math.max(min, Math.round(value)))
+    : fallback;
+}
+
 function loadPrefs(): SavedPrefs {
-  const defaults: SavedPrefs = { sessionsCompleted: 0, language: null };
+  const defaults: SavedPrefs = {
+    sessionsCompleted: 0,
+    language: null,
+    workSeconds: SESSION_SECONDS,
+    breakSeconds: BREAK_SECONDS,
+  };
   if (typeof window === 'undefined') return defaults;
   try {
     const saved = window.localStorage.getItem(STORAGE_KEY);
@@ -140,13 +183,20 @@ function loadPrefs(): SavedPrefs {
     return {
       sessionsCompleted: typeof parsed?.sessionsCompleted === 'number' ? parsed.sessionsCompleted : 0,
       language: typeof parsed?.language === 'string' ? (parsed.language as Language) : null,
+      workSeconds: clampInterval(parsed?.workSeconds, SESSION_SECONDS, 5 * 60, 60 * 60),
+      breakSeconds: clampInterval(parsed?.breakSeconds, BREAK_SECONDS, 10, 120),
     };
   } catch {
     return defaults;
   }
 }
 
-function savePrefs(prefs: { sessionsCompleted: number; language: Language }) {
+function savePrefs(prefs: {
+  sessionsCompleted: number;
+  language: Language;
+  workSeconds: number;
+  breakSeconds: number;
+}) {
   if (typeof window === 'undefined') return;
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
@@ -172,6 +222,8 @@ export default function EyeCareGlobal({
   const [language, setLanguage] = useState<Language>(initialLanguage ?? 'en');
   const [showLangPicker, setShowLangPicker] = useState(false);
   const [showDonation, setShowDonation] = useState(false);
+  const [showPro, setShowPro] = useState(false);
+  const [pro, setPro] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const [showAmbientHint, setShowAmbientHint] = useState(false);
@@ -225,6 +277,11 @@ export default function EyeCareGlobal({
     const prefs = loadPrefs();
     if (!initialLanguage) setLanguage(detectLanguage(prefs.language));
     dispatch({ type: 'HYDRATE_SESSIONS', n: prefs.sessionsCompleted });
+    const hasPro = isPro();
+    setPro(hasPro);
+    if (hasPro && (prefs.workSeconds !== SESSION_SECONDS || prefs.breakSeconds !== BREAK_SECONDS)) {
+      dispatch({ type: 'SET_INTERVALS', workSeconds: prefs.workSeconds, breakSeconds: prefs.breakSeconds });
+    }
     lastDonationShownAt.current = prefs.sessionsCompleted;
     setMutedState(loadMuted());
     // First-run: show welcome OR ambient hint (mutually exclusive).
@@ -244,8 +301,13 @@ export default function EyeCareGlobal({
 
   useEffect(() => {
     if (!isLoaded) return;
-    savePrefs({ sessionsCompleted: state.sessionsCompleted, language });
-  }, [language, state.sessionsCompleted, isLoaded]);
+    savePrefs({
+      sessionsCompleted: state.sessionsCompleted,
+      language,
+      workSeconds: state.workSeconds,
+      breakSeconds: state.breakSeconds,
+    });
+  }, [language, state.sessionsCompleted, state.workSeconds, state.breakSeconds, isLoaded]);
 
   // Set <html> dir + lang to match current language.
   useEffect(() => {
@@ -324,7 +386,7 @@ export default function EyeCareGlobal({
           window.setTimeout(() => setStreakChip(null), 8000);
         }
       }
-      if (next % DONATION_INTERVAL === 0 && next !== lastDonationShownAt.current) {
+      if (!pro && next % DONATION_INTERVAL === 0 && next !== lastDonationShownAt.current) {
         setShowDonation(true);
         lastDonationShownAt.current = next;
       }
@@ -332,7 +394,7 @@ export default function EyeCareGlobal({
       chimeBreakEnd();
       dispatch({ type: 'END_BREAK' });
     }
-  }, [state.phase, state.remaining, state.sessionsCompleted, t.notification, language]);
+  }, [state.phase, state.remaining, state.sessionsCompleted, t.notification, language, pro]);
 
   const handleStartPause = useCallback(() => {
     if (state.phase === 'idle') {
@@ -385,7 +447,7 @@ export default function EyeCareGlobal({
   // Keyboard shortcuts.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (showWelcome || showLangPicker || showHelp || showDonation) return;
+      if (showWelcome || showLangPicker || showHelp || showDonation || showPro) return;
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
       if (e.code === 'Space') {
@@ -401,10 +463,16 @@ export default function EyeCareGlobal({
     }
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [handleStartPause, handleReset, handleSkipBreak, state.phase, showWelcome, showLangPicker, showHelp, showDonation]);
+  }, [handleStartPause, handleReset, handleSkipBreak, state.phase, showWelcome, showLangPicker, showHelp, showDonation, showPro]);
 
   const cycleTheme = useCallback(() => {
     setTheme((x) => (x === 'auto' ? 'dark' : x === 'dark' ? 'light' : 'auto'));
+  }, []);
+
+  const handleSetIntervals = useCallback((workSeconds: number, breakSeconds: number) => {
+    dispatch({ type: 'SET_INTERVALS', workSeconds, breakSeconds });
+    setShowPro(false);
+    track('intervals_change', { work: workSeconds, break: breakSeconds });
   }, []);
 
   // Derived UI flags.
@@ -415,7 +483,7 @@ export default function EyeCareGlobal({
   const palette = useMemo(() => effectivePalette(hour, theme), [hour, theme]);
   const vigil = (theme === 'auto' && isVigil(hour)) || theme === 'dark';
   const workSecondsForProgress = state.phase === 'work' ? state.remaining : state.workRemaining;
-  const progress = Math.min(1, Math.max(0, (SESSION_SECONDS - workSecondsForProgress) / SESSION_SECONDS));
+  const progress = Math.min(1, Math.max(0, (state.workSeconds - workSecondsForProgress) / state.workSeconds));
   const localTime = `${String(Math.floor(hour)).padStart(2, '0')}:${String(Math.floor((hour % 1) * 60)).padStart(2, '0')}`;
   const hourLabel = hourLabelFor(hour);
   const hourWord =
@@ -614,6 +682,16 @@ export default function EyeCareGlobal({
             {t.totalSessions?.toLowerCase?.() ?? t.totalSessions}
           </div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            {(pro || PRO_PAYMENT_LINK) && (
+              <button
+                onClick={() => setShowPro(true)}
+                style={{ ...footerLinkStyle, color: 'var(--c-primary)' }}
+              >
+                {pro
+                  ? `${Math.round(state.workSeconds / 60)}m · ${state.breakSeconds}s`
+                  : 'Pro'}
+              </button>
+            )}
             <button
               onClick={() => setShowHelp(true)}
               style={footerLinkStyle}
@@ -657,6 +735,7 @@ export default function EyeCareGlobal({
           <BreakOverlay
             language={language}
             breakRemaining={state.remaining}
+            breakSeconds={state.breakSeconds}
             vigil={vigil}
             onSkip={handleSkipBreak}
           />
@@ -685,6 +764,20 @@ export default function EyeCareGlobal({
             language={language}
             sessionsCompleted={state.sessionsCompleted}
             onClose={() => setShowDonation(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Pro modal — purchase pitch or rhythm settings */}
+      <AnimatePresence>
+        {showPro && (
+          <ProModal
+            language={language}
+            pro={pro}
+            workSeconds={state.workSeconds}
+            breakSeconds={state.breakSeconds}
+            onApply={handleSetIntervals}
+            onClose={() => setShowPro(false)}
           />
         )}
       </AnimatePresence>
@@ -774,15 +867,16 @@ const footerLinkStyle: React.CSSProperties = {
 // ─── Break overlay ────────────────────────────────────────────────────────
 
 function BreakOverlay({
-  language, breakRemaining, vigil, onSkip,
+  language, breakRemaining, breakSeconds, vigil, onSkip,
 }: {
   language: Language;
   breakRemaining: number;
+  breakSeconds: number;
   vigil: boolean;
   onSkip: () => void;
 }) {
   const t = translations[language];
-  const elapsed = BREAK_SECONDS - breakRemaining;
+  const elapsed = breakSeconds - breakRemaining;
   const dir: 'ltr' | 'rtl' = hoursIsRTL(language) ? 'rtl' : 'ltr';
   const lh = langLineHeight(language);
 
@@ -918,6 +1012,175 @@ function BreakOverlay({
             </div>
             <AdSlot slot={BREAK_AD_SLOT} format="auto" reservedHeight={100} />
           </motion.div>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+// ─── Pro modal ────────────────────────────────────────────────────────────
+
+function ProModal({
+  language, pro, workSeconds, breakSeconds, onApply, onClose,
+}: {
+  language: Language;
+  pro: boolean;
+  workSeconds: number;
+  breakSeconds: number;
+  onApply: (workSeconds: number, breakSeconds: number) => void;
+  onClose: () => void;
+}) {
+  const [selWork, setSelWork] = useState(workSeconds);
+  const [selBreak, setSelBreak] = useState(breakSeconds);
+  const dirty = selWork !== workSeconds || selBreak !== breakSeconds;
+
+  const presetStyle = (active: boolean): React.CSSProperties => ({
+    fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
+    fontSize: '.6875rem', letterSpacing: '.1em',
+    padding: '8px 0', flex: 1, cursor: 'pointer',
+    background: active ? 'var(--c-ink)' : 'transparent',
+    color: active ? 'var(--c-bg)' : 'var(--c-ink)',
+    border: '1px solid var(--c-ink)',
+  });
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 70, display: 'grid', placeItems: 'center',
+        background: 'color-mix(in srgb, var(--c-bg) 80%, transparent)', padding: 24,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: 'var(--c-surface)', border: '1px solid var(--c-rule)',
+          padding: '32px 28px', maxWidth: 420, width: '100%',
+        }}
+      >
+        <div style={{
+          fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
+          fontSize: '.625rem', letterSpacing: '.16em', textTransform: 'uppercase',
+          color: 'var(--c-primary)', marginBottom: 14,
+        }}>
+          {pro ? tKey(language, 'rhythm') : tKey(language, 'proTitle')}
+        </div>
+
+        {!pro && (
+          <>
+            <div style={{
+              fontFamily: FONT_SERIF, fontStyle: 'italic', fontSize: '1.3rem',
+              color: 'var(--c-ink)', lineHeight: 1.4,
+            }}>
+              {tKey(language, 'proPitch')}
+            </div>
+            <div style={{
+              fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
+              fontSize: '.6875rem', letterSpacing: '.12em', textTransform: 'uppercase',
+              color: 'var(--c-mute)', marginTop: 16,
+            }}>
+              {tKey(language, 'proPrice')}
+            </div>
+            <div className="flex gap-3 mt-6">
+              <a
+                href={PRO_PAYMENT_LINK}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
+                  fontSize: '.6875rem', letterSpacing: '.16em', textTransform: 'uppercase',
+                  background: 'var(--c-ink)', color: 'var(--c-bg)',
+                  padding: '12px 22px', textDecoration: 'none',
+                }}
+              >
+                {tKey(language, 'proUnlock')}
+              </a>
+              <button
+                onClick={onClose}
+                style={{
+                  fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
+                  fontSize: '.625rem', letterSpacing: '.12em', textTransform: 'uppercase',
+                  color: 'var(--c-mute)', background: 'transparent', border: 0,
+                  padding: 12, cursor: 'pointer',
+                }}
+              >
+                {tKey(language, 'later')}
+              </button>
+            </div>
+            <div style={{
+              fontFamily: FONT_SERIF, fontStyle: 'italic',
+              fontSize: '.82rem', color: 'var(--c-mute)', marginTop: 18, lineHeight: 1.5,
+            }}>
+              {tKey(language, 'proAlready')}
+            </div>
+          </>
+        )}
+
+        {pro && (
+          <>
+            <div style={{
+              fontFamily: FONT_SERIF, fontStyle: 'italic',
+              fontSize: '.9rem', color: 'var(--c-mute)', marginBottom: 8,
+            }}>
+              {tKey(language, 'rhythmWork')}
+            </div>
+            <div className="flex gap-2">
+              {WORK_PRESETS.map((w) => (
+                <button key={w} onClick={() => setSelWork(w)} style={presetStyle(selWork === w)}>
+                  {w / 60}
+                </button>
+              ))}
+            </div>
+            <div style={{
+              fontFamily: FONT_SERIF, fontStyle: 'italic',
+              fontSize: '.9rem', color: 'var(--c-mute)', margin: '18px 0 8px',
+            }}>
+              {tKey(language, 'rhythmBreak')}
+            </div>
+            <div className="flex gap-2">
+              {BREAK_PRESETS.map((b) => (
+                <button key={b} onClick={() => setSelBreak(b)} style={presetStyle(selBreak === b)}>
+                  {b}
+                </button>
+              ))}
+            </div>
+            <div style={{
+              fontFamily: FONT_SERIF, fontStyle: 'italic',
+              fontSize: '.8rem', color: 'var(--c-mute)', marginTop: 16,
+            }}>
+              {tKey(language, 'rhythmNote')}
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button
+                onClick={() => onApply(selWork, selBreak)}
+                disabled={!dirty}
+                style={{
+                  fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
+                  fontSize: '.6875rem', letterSpacing: '.16em', textTransform: 'uppercase',
+                  background: dirty ? 'var(--c-ink)' : 'transparent',
+                  color: dirty ? 'var(--c-bg)' : 'var(--c-mute)',
+                  border: '1px solid ' + (dirty ? 'var(--c-ink)' : 'var(--c-rule)'),
+                  padding: '12px 22px', cursor: dirty ? 'pointer' : 'not-allowed',
+                }}
+              >
+                {tKey(language, 'rhythmApply')}
+              </button>
+              <button
+                onClick={onClose}
+                style={{
+                  fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
+                  fontSize: '.625rem', letterSpacing: '.12em', textTransform: 'uppercase',
+                  color: 'var(--c-mute)', background: 'transparent', border: 0,
+                  padding: 12, cursor: 'pointer',
+                }}
+              >
+                {tKey(language, 'later')}
+              </button>
+            </div>
+          </>
         )}
       </div>
     </motion.div>

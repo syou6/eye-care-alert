@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { isPro } from '@/lib/pro';
 
 declare global {
   interface Window {
@@ -26,8 +27,14 @@ export default function AdSlot({
 }) {
   const insRef = useRef<HTMLModElement>(null);
   const pushedRef = useRef(false);
+  // Pro removes all ads. Checked in an effect so SSR markup stays stable.
+  const [hidden, setHidden] = useState(false);
 
   useEffect(() => {
+    if (isPro()) {
+      setHidden(true);
+      return;
+    }
     if (pushedRef.current) return;
     if (typeof window === 'undefined') return;
     try {
@@ -38,6 +45,8 @@ export default function AdSlot({
       // double-initialized in dev; non-fatal.
     }
   }, []);
+
+  if (hidden) return null;
 
   return (
     <div

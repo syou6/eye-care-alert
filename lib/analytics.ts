@@ -24,7 +24,11 @@ type EventName =
   | 'help_opened'
   | 'embed_loaded'
   | 'ics_downloaded'
-  | 'streak_milestone';
+  | 'streak_milestone'
+  | 'intervals_change'
+  | 'pro_modal_shown'
+  | 'pro_unlock_clicked'
+  | 'pro_activated';
 
 type EventProps = Record<string, string | number | boolean | undefined>;
 

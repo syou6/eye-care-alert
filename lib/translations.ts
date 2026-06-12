@@ -429,6 +429,17 @@ export const HOURS_KEYS = {
   installBody: 'Add to home screen for quick access.',
   later: 'Later',
   donationAsk: 'If this small thing is helping your eyes, consider supporting it.',
+  // Pro
+  proTitle: 'EYE CARE Pro',
+  proPitch: 'Remove all ads and set your own rhythm. One purchase, yours forever.',
+  proPrice: '$5 · one time',
+  proUnlock: 'Unlock Pro',
+  proAlready: 'Already purchased? Open the activation link from your Stripe receipt — it works on any device.',
+  rhythm: 'Rhythm',
+  rhythmWork: 'work — minutes',
+  rhythmBreak: 'break — seconds',
+  rhythmNote: 'Changing the rhythm resets the current cycle.',
+  rhythmApply: 'Apply',
   // Onboarding & UX
   helpTitle: 'What is the 20-20-20 rule?',
   helpBody:
