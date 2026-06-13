@@ -440,6 +440,15 @@ export const HOURS_KEYS = {
   rhythmBreak: 'break — seconds',
   rhythmNote: 'Changing the rhythm resets the current cycle.',
   rhythmApply: 'Apply',
+  rhythmMinShort: 'min',
+  rhythmSecShort: 'sec',
+  rhythmAdjust: 'adjust',
+  rhythmCustomize: 'customize',
+  proLockedHint: 'Pick your rhythm — unlock to keep it.',
+  proUnlockPrice: 'Unlock — $5',
+  proBenefitAds: 'Remove all ads',
+  proBenefitRhythm: 'Set your own work / break rhythm',
+  proBenefitForever: 'One payment, yours forever',
   // Onboarding & UX
   helpTitle: 'What is the 20-20-20 rule?',
   helpBody:

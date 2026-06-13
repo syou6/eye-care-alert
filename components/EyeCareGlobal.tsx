@@ -642,6 +642,28 @@ export default function EyeCareGlobal({
             {t.reset}
           </button>
 
+          {/* Tappable rhythm — discoverable entry to custom intervals (Pro). */}
+          {(pro || PRO_PAYMENT_LINK) && !isActive && (
+            <button
+              onClick={() => {
+                if (!pro) track('pro_modal_shown', { from: 'rhythm_chip', language });
+                setShowPro(true);
+              }}
+              style={{
+                marginTop: 4,
+                fontFamily: FONT_SERIF, fontStyle: 'italic',
+                fontSize: '.95rem', color: 'var(--c-mute)',
+                background: 'transparent', border: 0, cursor: 'pointer',
+                borderBottom: '1px dotted var(--c-rule)', paddingBottom: 2,
+              }}
+            >
+              {Math.round(state.workSeconds / 60)} {tKey(language, 'rhythmMinShort')} · {state.breakSeconds} {tKey(language, 'rhythmSecShort')}
+              <span style={{ color: 'var(--c-primary)', marginInlineStart: 8 }}>
+                {pro ? tKey(language, 'rhythmAdjust') : tKey(language, 'rhythmCustomize')}
+              </span>
+            </button>
+          )}
+
           <AnimatePresence>
             {showAmbientHint && !isActive && !showBreak && (
               <motion.p
@@ -684,9 +706,7 @@ export default function EyeCareGlobal({
                 onClick={() => setShowPro(true)}
                 style={{ ...footerLinkStyle, color: 'var(--c-primary)' }}
               >
-                {pro
-                  ? `${Math.round(state.workSeconds / 60)}m · ${state.breakSeconds}s`
-                  : 'Pro'}
+                {pro ? `${Math.round(state.workSeconds / 60)}m · ${state.breakSeconds}s` : 'Pro · $5'}
               </button>
             )}
             <button
@@ -1057,86 +1077,53 @@ function ProModal({
           color: 'var(--c-primary)', marginBottom: 14,
         }}>
           {pro ? tKey(language, 'rhythm') : tKey(language, 'proTitle')}
+          {!pro && (
+            <span style={{ marginInlineStart: 8, color: 'var(--c-mute)' }}>
+              · {tKey(language, 'proPrice')}
+            </span>
+          )}
         </div>
 
+        {/* Free users get the same pickers — they can taste the feature
+            before the paywall. The selection becomes the pitch. */}
         {!pro && (
-          <>
-            <div style={{
-              fontFamily: FONT_SERIF, fontStyle: 'italic', fontSize: '1.3rem',
-              color: 'var(--c-ink)', lineHeight: 1.4,
-            }}>
-              {tKey(language, 'proPitch')}
-            </div>
-            <div style={{
-              fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
-              fontSize: '.6875rem', letterSpacing: '.12em', textTransform: 'uppercase',
-              color: 'var(--c-mute)', marginTop: 16,
-            }}>
-              {tKey(language, 'proPrice')}
-            </div>
-            <div className="flex gap-3 mt-6">
-              <a
-                href={PRO_PAYMENT_LINK}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
-                  fontSize: '.6875rem', letterSpacing: '.16em', textTransform: 'uppercase',
-                  background: 'var(--c-ink)', color: 'var(--c-bg)',
-                  padding: '12px 22px', textDecoration: 'none',
-                }}
-              >
-                {tKey(language, 'proUnlock')}
-              </a>
-              <button
-                onClick={onClose}
-                style={{
-                  fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
-                  fontSize: '.625rem', letterSpacing: '.12em', textTransform: 'uppercase',
-                  color: 'var(--c-mute)', background: 'transparent', border: 0,
-                  padding: 12, cursor: 'pointer',
-                }}
-              >
-                {tKey(language, 'later')}
-              </button>
-            </div>
-            <div style={{
-              fontFamily: FONT_SERIF, fontStyle: 'italic',
-              fontSize: '.82rem', color: 'var(--c-mute)', marginTop: 18, lineHeight: 1.5,
-            }}>
-              {tKey(language, 'proAlready')}
-            </div>
-          </>
+          <div style={{
+            fontFamily: FONT_SERIF, fontStyle: 'italic',
+            fontSize: '1.05rem', color: 'var(--c-ink)', lineHeight: 1.4, marginBottom: 18,
+          }}>
+            {tKey(language, 'proLockedHint')}
+          </div>
         )}
+
+        <div style={{
+          fontFamily: FONT_SERIF, fontStyle: 'italic',
+          fontSize: '.9rem', color: 'var(--c-mute)', marginBottom: 8,
+        }}>
+          {tKey(language, 'rhythmWork')}
+        </div>
+        <div className="flex gap-2">
+          {WORK_PRESETS.map((w) => (
+            <button key={w} onClick={() => setSelWork(w)} style={presetStyle(selWork === w)}>
+              {w / 60}
+            </button>
+          ))}
+        </div>
+        <div style={{
+          fontFamily: FONT_SERIF, fontStyle: 'italic',
+          fontSize: '.9rem', color: 'var(--c-mute)', margin: '18px 0 8px',
+        }}>
+          {tKey(language, 'rhythmBreak')}
+        </div>
+        <div className="flex gap-2">
+          {BREAK_PRESETS.map((b) => (
+            <button key={b} onClick={() => setSelBreak(b)} style={presetStyle(selBreak === b)}>
+              {b}
+            </button>
+          ))}
+        </div>
 
         {pro && (
           <>
-            <div style={{
-              fontFamily: FONT_SERIF, fontStyle: 'italic',
-              fontSize: '.9rem', color: 'var(--c-mute)', marginBottom: 8,
-            }}>
-              {tKey(language, 'rhythmWork')}
-            </div>
-            <div className="flex gap-2">
-              {WORK_PRESETS.map((w) => (
-                <button key={w} onClick={() => setSelWork(w)} style={presetStyle(selWork === w)}>
-                  {w / 60}
-                </button>
-              ))}
-            </div>
-            <div style={{
-              fontFamily: FONT_SERIF, fontStyle: 'italic',
-              fontSize: '.9rem', color: 'var(--c-mute)', margin: '18px 0 8px',
-            }}>
-              {tKey(language, 'rhythmBreak')}
-            </div>
-            <div className="flex gap-2">
-              {BREAK_PRESETS.map((b) => (
-                <button key={b} onClick={() => setSelBreak(b)} style={presetStyle(selBreak === b)}>
-                  {b}
-                </button>
-              ))}
-            </div>
             <div style={{
               fontFamily: FONT_SERIF, fontStyle: 'italic',
               fontSize: '.8rem', color: 'var(--c-mute)', marginTop: 16,
@@ -1169,6 +1156,57 @@ function ProModal({
               >
                 {tKey(language, 'later')}
               </button>
+            </div>
+          </>
+        )}
+
+        {!pro && (
+          <>
+            {/* What you actually get, listed concretely. */}
+            <ul style={{
+              listStyle: 'none', margin: '22px 0 0', padding: 0,
+              fontFamily: FONT_SERIF, fontStyle: 'italic',
+              fontSize: '.95rem', color: 'var(--c-ink)', lineHeight: 1.7,
+            }}>
+              {(['proBenefitRhythm', 'proBenefitAds', 'proBenefitForever'] as const).map((k) => (
+                <li key={k} style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+                  <span style={{ color: 'var(--c-primary)' }}>—</span>
+                  {tKey(language, k)}
+                </li>
+              ))}
+            </ul>
+            <div className="flex gap-3 mt-6 items-center">
+              <a
+                href={PRO_PAYMENT_LINK}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => track('pro_unlock_clicked', { language })}
+                style={{
+                  fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
+                  fontSize: '.6875rem', letterSpacing: '.16em', textTransform: 'uppercase',
+                  background: 'var(--c-ink)', color: 'var(--c-bg)',
+                  padding: '13px 24px', textDecoration: 'none',
+                }}
+              >
+                {tKey(language, 'proUnlockPrice')}
+              </a>
+              <button
+                onClick={onClose}
+                style={{
+                  fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
+                  fontSize: '.625rem', letterSpacing: '.12em', textTransform: 'uppercase',
+                  color: 'var(--c-mute)', background: 'transparent', border: 0,
+                  padding: 12, cursor: 'pointer',
+                }}
+              >
+                {tKey(language, 'later')}
+              </button>
+            </div>
+            <div style={{
+              fontFamily: FONT_SERIF, fontStyle: 'italic',
+              fontSize: '.78rem', color: 'var(--c-mute)', marginTop: 16, lineHeight: 1.5,
+            }}>
+              {tKey(language, 'proAlready')}
             </div>
           </>
         )}
