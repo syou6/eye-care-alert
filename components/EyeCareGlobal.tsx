@@ -1,10 +1,13 @@
 'use client';
 
-// EyeCareGlobal — "Hours" editorial redesign.
-// Preserves the Phase-1 reducer (timestamp-based FSM) and the i18n routing
-// integration; only the JSX render tree adopts the new design language.
+// EyeCareGlobal — "Shadow Console" neumorphic redesign.
+// One material, one light source (top-left): every surface shares --bg and is
+// separated only by soft dual shadows (see .neu / .neu-pressed in globals.css).
+// Accent is reserved as signal — primary action, progress, ON/selected, the
+// last-minute urgent readout. Preserves the timestamp-based reducer, i18n
+// routing, audio, ticker, streak and Pro logic; only the render tree changed.
 
-import { useEffect, useMemo, useReducer, useRef, useState, useCallback } from 'react';
+import { useEffect, useReducer, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence, MotionConfig } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -13,10 +16,12 @@ import HelpModal from '@/components/HelpModal';
 import WelcomeModal, { WELCOME_STORAGE_KEY } from '@/components/WelcomeModal';
 import { translations, HOURS_KEYS, tKey, type Language } from '@/lib/translations';
 import {
-  effectivePalette, paletteVars,
-  hourLabelFor, roman, isVigil, isRTL as hoursIsRTL, langLineHeight,
-  FONT_SERIF,
+  hourLabelFor, roman, isRTL as hoursIsRTL, langLineHeight,
 } from '@/lib/hours';
+
+// Shadow Console typefaces (defined in layout.tsx via next/font).
+const F_UI = 'var(--font-grotesk), ui-sans-serif, system-ui, sans-serif';
+const F_MONO = 'var(--font-console), ui-monospace, monospace';
 import {
   unlockAudio, chimeBreakStart, chimeBreakEnd, chimeWarning,
   loadMuted, setMuted as persistMuted,
@@ -274,6 +279,17 @@ export default function EyeCareGlobal({
     }
   }, [theme]);
 
+  // Resolve `auto` to a concrete light/dark for the single-material palette.
+  const [systemDark, setSystemDark] = useState(false);
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const sync = () => setSystemDark(mq.matches);
+    sync();
+    mq.addEventListener('change', sync);
+    return () => mq.removeEventListener('change', sync);
+  }, []);
+
   // Hydrate session prefs once (URL-provided language wins).
   useEffect(() => {
     const prefs = loadPrefs();
@@ -477,8 +493,9 @@ export default function EyeCareGlobal({
   const isPaused = state.phase === 'idle' && state.workRemaining < SESSION_SECONDS && state.workRemaining > 0;
   const showBreak = state.phase === 'break';
   const last60 = isActive && state.remaining <= 60;
-  const palette = useMemo(() => effectivePalette(hour, theme), [hour, theme]);
-  const vigil = (theme === 'auto' && isVigil(hour)) || theme === 'dark';
+  const resolvedDark = theme === 'dark' || (theme === 'auto' && systemDark);
+  const dataTheme: 'light' | 'dark' = resolvedDark ? 'dark' : 'light';
+  const vigil = resolvedDark;
   const workSecondsForProgress = state.phase === 'work' ? state.remaining : state.workRemaining;
   const progress = Math.min(1, Math.max(0, (state.workSeconds - workSecondsForProgress) / state.workSeconds));
   const localTime = `${String(Math.floor(hour)).padStart(2, '0')}:${String(Math.floor((hour % 1) * 60)).padStart(2, '0')}`;
@@ -491,156 +508,171 @@ export default function EyeCareGlobal({
   return (
     <MotionConfig reducedMotion="user">
     <div
+      className="shadow-console"
+      data-theme={dataTheme}
       dir={dir}
       style={{
-        ...paletteVars(palette),
-        background: 'var(--c-bg)',
-        color: 'var(--c-ink)',
         minHeight: '100dvh',
         display: 'flex',
         flexDirection: 'column',
-        fontFamily: 'var(--font-geist-sans, "Geist Sans", ui-sans-serif, system-ui, sans-serif)',
         containerType: 'inline-size',
-        transition: 'background-color 1.6s ease, color 1.6s ease',
+        transition: 'background-color .4s ease, color .4s ease',
       }}
     >
-      {/* Masthead */}
-      <header
-        className="flex items-baseline justify-between px-5 pt-4 pb-3"
-        style={{ borderBottom: '1px solid var(--c-rule)', gap: 12 }}
-      >
+      {/* Masthead — flat on the shared material, controls raised */}
+      <header className="flex items-center justify-between px-5 pt-5 pb-3" style={{ gap: 12 }}>
         <div className="flex items-baseline gap-3 min-w-0 flex-1">
           <span style={{
-            fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
-            fontSize: '.6875rem', fontWeight: 500, letterSpacing: '.16em',
-            textTransform: 'uppercase', whiteSpace: 'nowrap',
+            fontFamily: F_UI, fontSize: '.8125rem', fontWeight: 500, letterSpacing: '.2em',
+            textTransform: 'uppercase', whiteSpace: 'nowrap', color: 'var(--ink)',
           }}>
             {vigil ? '☾ ' : ''}EYE&nbsp;CARE
           </span>
           <span style={{
-            fontFamily: FONT_SERIF, fontStyle: 'italic',
-            fontSize: '.82rem', color: 'var(--c-mute)',
+            fontFamily: F_UI, fontSize: '.8rem', color: 'var(--ink-soft)',
             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
           }}>{hourWord}</span>
         </div>
         <div className="flex items-center gap-3 shrink-0">
-          <button
+          <motion.button
+            whileTap={{ scale: 0.94 }}
             onClick={() => setShowHelp(true)}
             aria-label={tKey(language, 'helpLabel')}
-            style={{
-              fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
-              fontSize: '.75rem', color: 'var(--c-mute)',
-              background: 'transparent', border: 0, cursor: 'pointer', padding: '2px 6px',
-            }}
+            className="neu neu-btn"
+            style={ICON_BTN}
           >
             ?
-          </button>
-          <button
+          </motion.button>
+          <motion.button
+            whileTap={{ scale: 0.94 }}
             onClick={toggleMuted}
             aria-label={muted ? tKey(language, 'soundOff') : tKey(language, 'soundOn')}
-            style={{ color: 'var(--c-mute)', background: 'transparent', border: 0, cursor: 'pointer', padding: 4 }}
+            className="neu neu-btn"
+            style={ICON_BTN}
           >
             <SoundGlyph muted={muted} />
-          </button>
-          <button
+          </motion.button>
+          <motion.button
+            whileTap={{ scale: 0.94 }}
             onClick={() => setShowLangPicker(true)}
             aria-label="Language"
-            style={{
-              fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
-              fontSize: '.625rem', letterSpacing: '.12em',
-              textTransform: 'uppercase', color: 'var(--c-mute)',
-              background: 'transparent', border: 0, cursor: 'pointer',
-            }}
+            className="neu neu-btn"
+            style={{ ...ICON_BTN, fontSize: '.6875rem', letterSpacing: '.06em' }}
           >
             {language.toUpperCase()}
-          </button>
-          <button
+          </motion.button>
+          <motion.button
+            whileTap={{ scale: 0.94 }}
             onClick={cycleTheme}
             aria-label={`Theme: ${theme}`}
-            style={{ color: 'var(--c-mute)', background: 'transparent', border: 0, cursor: 'pointer', padding: 4 }}
+            className="neu neu-btn"
+            style={ICON_BTN}
           >
             <ThemeGlyph theme={theme} />
-          </button>
+          </motion.button>
         </div>
       </header>
 
-      {/* Hairline progress */}
-      <div style={{ height: 1, background: 'var(--c-rule)', position: 'relative' }}>
-        <motion.div
+      {/* Recessed progress groove — accent fill glows in the channel */}
+      <div style={{ padding: '10px 20px 4px' }}>
+        <div
+          className="neu-pressed"
           style={{
-            position: 'absolute', insetInlineStart: 0, top: -0.5, height: 2,
-            background: last60 ? 'var(--c-warn)' : 'var(--c-primary)',
-          }}
-          animate={{ width: `${progress * 100}%` }}
-          transition={{ duration: 0.9, ease: 'linear' }}
-        />
+            height: 12, borderRadius: 999, padding: 2, overflow: 'hidden',
+            '--offset': '2px', '--blur': '4px',
+          } as React.CSSProperties}
+        >
+          <motion.div
+            animate={{ width: `${progress * 100}%` }}
+            transition={{ duration: 0.9, ease: 'linear' }}
+            style={{
+              height: '100%', borderRadius: 999,
+              background: 'linear-gradient(90deg, var(--accent-2), var(--accent))',
+              boxShadow: last60
+                ? '0 0 12px color-mix(in srgb, var(--accent) 80%, transparent)'
+                : '0 0 6px color-mix(in srgb, var(--accent) 45%, transparent)',
+            }}
+          />
+        </div>
       </div>
 
       {/* Centerpiece */}
-      <main className="flex-1 grid place-items-center px-6 py-8" style={{ gridTemplateRows: '1fr auto 1fr' }}>
+      <main className="flex-1 grid place-items-center px-6 py-6" style={{ gridTemplateRows: '1fr auto 1fr' }}>
         <div />
         <div className="text-center" style={{ maxWidth: 760 }}>
           <div style={{
-            fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
-            fontSize: '.625rem', letterSpacing: '.12em', textTransform: 'uppercase',
-            color: 'var(--c-mute)', marginBottom: 10,
+            fontFamily: F_UI, fontSize: '.6875rem', fontWeight: 500,
+            letterSpacing: '.18em', textTransform: 'uppercase',
+            color: 'var(--ink-soft)', marginBottom: 20,
           }}>
-            {t.title} · {roman(state.sessionsCompleted + 1)} · {localTime}
+            {t.title} · {roman(state.sessionsCompleted + 1)} ·{' '}
+            <span style={{ fontFamily: F_MONO, letterSpacing: '.04em' }}>{localTime}</span>
           </div>
+
+          {/* Instrument readout, recessed into the panel */}
           <div
-            aria-live="polite"
+            className="neu-pressed"
             style={{
-              fontFamily: FONT_SERIF, fontStyle: 'italic', fontWeight: vigil ? 200 : 300,
-              fontSize: 'clamp(5rem, 32cqw, 16rem)', lineHeight: 0.92,
-              letterSpacing: '-0.02em', color: 'var(--c-ink)',
-              fontVariantNumeric: 'lining-nums tabular-nums',
-              position: 'relative',
+              display: 'inline-block',
+              borderRadius: 'var(--r-card)',
+              padding: 'clamp(20px, 6cqw, 44px) clamp(28px, 9cqw, 72px)',
             }}
           >
-            {formatTime(state.remaining)}
-            {last60 && (
-              <span aria-hidden style={{
-                position: 'absolute', inset: '-6%',
-                background: 'radial-gradient(closest-side, var(--c-warn) 0%, transparent 65%)',
-                opacity: 0.14, pointerEvents: 'none',
-              }} />
-            )}
+            <div
+              aria-live="polite"
+              style={{
+                fontFamily: F_MONO, fontWeight: 400,
+                fontSize: 'clamp(3.5rem, 26cqw, 11rem)', lineHeight: 1,
+                letterSpacing: '-0.01em',
+                color: last60 ? 'var(--accent)' : 'var(--ink)',
+                fontVariantNumeric: 'tabular-nums',
+                transition: 'color .3s ease',
+                textShadow: last60
+                  ? '0 0 28px color-mix(in srgb, var(--accent) 45%, transparent)'
+                  : 'none',
+              }}
+            >
+              {formatTime(state.remaining)}
+            </div>
           </div>
+
           <div style={{
-            fontFamily: FONT_SERIF, fontStyle: 'italic',
-            fontSize: '1.125rem', color: 'var(--c-mute)',
-            marginTop: 10, lineHeight: lh,
+            fontFamily: F_UI, fontSize: '1rem', color: 'var(--ink-soft)',
+            marginTop: 22, lineHeight: lh,
           }}>
             {!isActive && !isPaused && t.subtitle}
-            {isActive && (last60 ? '—' : <em>{t.tracking?.toLowerCase?.() ?? t.tracking}</em>)}
-            {isPaused && <em>{t.paused?.toLowerCase?.() ?? t.paused}</em>}
+            {isActive && (last60 ? '—' : (t.tracking?.toLowerCase?.() ?? t.tracking))}
+            {isPaused && (t.paused?.toLowerCase?.() ?? t.paused)}
           </div>
         </div>
 
-        <div className="self-start mt-8 flex flex-col items-center gap-3">
-          <button
+        <div className="self-start mt-10 flex flex-col items-center gap-5">
+          <motion.button
+            whileTap={{ scale: 0.97 }}
             onClick={handleStartPause}
+            className="neu-primary"
             style={{
-              fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
-              fontSize: '.6875rem', letterSpacing: '.16em', textTransform: 'uppercase',
-              border: '1px solid var(--c-ink)', color: 'var(--c-ink)',
-              background: 'transparent', padding: '12px 22px',
-              minHeight: 44, minWidth: 132, cursor: 'pointer',
+              fontFamily: F_UI, fontSize: '.8rem', fontWeight: 500,
+              letterSpacing: '.16em', textTransform: 'uppercase',
+              padding: '17px 44px', borderRadius: 'var(--r-ctrl)',
+              minHeight: 54, minWidth: 176,
             }}
           >
             {isActive ? t.pause : t.start}
-          </button>
-          <button
+          </motion.button>
+          <motion.button
+            whileTap={{ scale: 0.97 }}
             onClick={handleReset}
+            className="neu neu-btn"
             style={{
-              fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
-              fontSize: '.625rem', letterSpacing: '.12em', textTransform: 'uppercase',
-              color: 'var(--c-mute)', background: 'transparent', border: 0, padding: '8px 12px',
-              cursor: 'pointer',
-            }}
+              fontFamily: F_UI, fontSize: '.6875rem', fontWeight: 500,
+              letterSpacing: '.14em', textTransform: 'uppercase',
+              color: 'var(--ink-soft)', padding: '11px 26px', borderRadius: 'var(--r-ctrl)',
+              '--offset': '4px', '--blur': '9px',
+            } as React.CSSProperties}
           >
             {t.reset}
-          </button>
+          </motion.button>
 
           {/* Tappable rhythm — discoverable entry to custom intervals (Pro). */}
           {(pro || PRO_PAYMENT_LINK) && !isActive && (
@@ -649,16 +681,19 @@ export default function EyeCareGlobal({
                 if (!pro) track('pro_modal_shown', { from: 'rhythm_chip', language });
                 setShowPro(true);
               }}
+              className="neu-pressed"
               style={{
-                marginTop: 4,
-                fontFamily: FONT_SERIF, fontStyle: 'italic',
-                fontSize: '.95rem', color: 'var(--c-mute)',
-                background: 'transparent', border: 0, cursor: 'pointer',
-                borderBottom: '1px dotted var(--c-rule)', paddingBottom: 2,
-              }}
+                marginTop: 2, background: 'var(--bg)', border: 0, cursor: 'pointer',
+                borderRadius: 999, padding: '9px 18px',
+                fontFamily: F_UI, fontSize: '.8rem', color: 'var(--ink-soft)',
+                '--offset': '2px', '--blur': '5px',
+              } as React.CSSProperties}
             >
-              {Math.round(state.workSeconds / 60)} {tKey(language, 'rhythmMinShort')} · {state.breakSeconds} {tKey(language, 'rhythmSecShort')}
-              <span style={{ color: 'var(--c-primary)', marginInlineStart: 8 }}>
+              <span style={{ fontFamily: F_MONO }}>{Math.round(state.workSeconds / 60)}</span>{' '}
+              {tKey(language, 'rhythmMinShort')} ·{' '}
+              <span style={{ fontFamily: F_MONO }}>{state.breakSeconds}</span>{' '}
+              {tKey(language, 'rhythmSecShort')}
+              <span style={{ color: 'var(--accent)', marginInlineStart: 10, fontWeight: 500 }}>
                 {pro ? tKey(language, 'rhythmAdjust') : tKey(language, 'rhythmCustomize')}
               </span>
             </button>
@@ -672,10 +707,10 @@ export default function EyeCareGlobal({
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.5 }}
                 style={{
-                  marginTop: 18,
+                  marginTop: 8,
                   maxWidth: 340,
-                  fontFamily: FONT_SERIF, fontStyle: 'italic',
-                  fontSize: '.875rem', color: 'var(--c-mute)',
+                  fontFamily: F_UI,
+                  fontSize: '.85rem', color: 'var(--ink-soft)',
                   textAlign: 'center', lineHeight: lh,
                 }}
               >
@@ -687,46 +722,37 @@ export default function EyeCareGlobal({
       </main>
 
       {/* Footer */}
-      <footer style={{ borderTop: '1px solid var(--c-rule)', padding: '12px 20px 14px' }} className="flex flex-col gap-2">
-        <div className="flex justify-between items-baseline">
+      <footer style={{ padding: '12px 20px 16px' }} className="flex flex-col gap-3">
+        <div className="flex justify-between items-center" style={{ gap: 12, flexWrap: 'wrap' }}>
           <div style={{
-            fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
-            fontSize: '.625rem', letterSpacing: '.12em', textTransform: 'uppercase',
-            color: 'var(--c-mute)',
+            fontFamily: F_UI, fontSize: '.6875rem', fontWeight: 500,
+            letterSpacing: '.12em', textTransform: 'uppercase',
+            color: 'var(--ink-soft)',
           }}>
-            <span style={{ fontFamily: FONT_SERIF, fontStyle: 'italic', letterSpacing: 0, textTransform: 'none' }}>
+            <span style={{ fontFamily: F_MONO, letterSpacing: '.04em', textTransform: 'none' }}>
               {roman(state.sessionsCompleted)}
             </span>
             <span style={{ margin: '0 .5em', opacity: 0.5 }}>·</span>
             {t.totalSessions?.toLowerCase?.() ?? t.totalSessions}
           </div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             {(pro || PRO_PAYMENT_LINK) && (
               <button
                 onClick={() => setShowPro(true)}
-                style={{ ...footerLinkStyle, color: 'var(--c-primary)' }}
+                style={{ ...footerLinkStyle, color: 'var(--accent)' }}
               >
-                {pro ? `${Math.round(state.workSeconds / 60)}m · ${state.breakSeconds}s` : 'Pro · $5'}
+                {pro
+                  ? <><span style={{ fontFamily: F_MONO }}>{Math.round(state.workSeconds / 60)}m · {state.breakSeconds}s</span></>
+                  : 'Pro · $5'}
               </button>
             )}
-            <button
-              onClick={() => setShowHelp(true)}
-              style={footerLinkStyle}
-            >
-              Help
-            </button>
+            <button onClick={() => setShowHelp(true)} style={footerLinkStyle}>Help</button>
             <Link href="/about" style={footerLinkStyle}>About</Link>
             <Link href="/stats" style={footerLinkStyle}>Stats</Link>
             <Link href="/learn" style={footerLinkStyle}>Learn</Link>
             <Link href="/privacy" style={footerLinkStyle}>Privacy</Link>
             <Link href="/terms" style={footerLinkStyle}>Terms</Link>
-            <a
-              href="/eye-care.ics"
-              download
-              style={footerLinkStyle}
-            >
-              .ics
-            </a>
+            <a href="/eye-care.ics" download style={footerLinkStyle}>.ics</a>
             <a
               href="https://buymeacoffee.com/shokawamoto"
               target="_blank"
@@ -738,9 +764,9 @@ export default function EyeCareGlobal({
           </div>
         </div>
         <div style={{
-          fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
-          fontSize: '.55rem', letterSpacing: '.12em', textTransform: 'uppercase',
-          color: 'var(--c-mute)', opacity: 0.6, textAlign: 'center',
+          fontFamily: F_UI, fontSize: '.6rem', fontWeight: 500,
+          letterSpacing: '.12em', textTransform: 'uppercase',
+          color: 'var(--ink-soft)', opacity: 0.7, textAlign: 'center',
         }}>
           {tKey(language, 'kbdHint')}
         </div>
@@ -826,20 +852,21 @@ export default function EyeCareGlobal({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 4 }}
             transition={{ duration: 0.4 }}
+            className="neu"
             style={{
               position: 'fixed',
               bottom: 'max(20px, env(safe-area-inset-bottom))',
               insetInlineStart: 20,
               zIndex: 45,
-              background: 'var(--c-surface)',
-              border: '1px solid var(--c-rule)',
-              padding: '10px 16px',
-              fontFamily: FONT_SERIF,
-              fontStyle: 'italic',
-              fontSize: '.875rem',
-              color: 'var(--c-ink)',
+              background: 'var(--bg)',
+              borderRadius: 'var(--r-ctrl)',
+              padding: '12px 18px',
+              fontFamily: F_UI,
+              fontSize: '.85rem',
+              color: 'var(--ink)',
               maxWidth: 'calc(100vw - 40px)',
-            }}
+              '--offset': '4px', '--blur': '10px',
+            } as React.CSSProperties}
           >
             {streakChip}
           </motion.div>
@@ -868,11 +895,19 @@ function SoundGlyph({ muted }: { muted: boolean }) {
 }
 
 const footerLinkStyle: React.CSSProperties = {
-  fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
-  fontSize: '.625rem', letterSpacing: '.12em', textTransform: 'uppercase',
-  color: 'var(--c-mute)', textDecoration: 'none',
+  fontFamily: F_UI,
+  fontSize: '.6875rem', fontWeight: 500, letterSpacing: '.1em', textTransform: 'uppercase',
+  color: 'var(--ink-soft)', textDecoration: 'none',
   background: 'transparent', border: 0, padding: 0, cursor: 'pointer',
 };
+
+// Shared round icon-button footprint — a small raised control on the material.
+const ICON_BTN: React.CSSProperties = {
+  width: 42, height: 42, borderRadius: '50%',
+  display: 'grid', placeItems: 'center',
+  color: 'var(--ink-soft)', fontFamily: F_MONO, fontSize: '.75rem',
+  '--offset': '3px', '--blur': '6px',
+} as React.CSSProperties;
 
 // ─── Break overlay ────────────────────────────────────────────────────────
 
@@ -906,6 +941,8 @@ function BreakOverlay({
   return (
     <motion.div
       dir={dir}
+      className="shadow-console"
+      data-theme={vigil ? 'dark' : 'light'}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
@@ -914,58 +951,58 @@ function BreakOverlay({
       aria-label={t.restYourEyes}
       style={{
         position: 'fixed', inset: 0, zIndex: 50,
-        background: 'var(--c-surface)', color: 'var(--c-ink)',
+        background: 'var(--bg)', color: 'var(--ink)',
         display: 'flex', flexDirection: 'column',
-        fontFamily: 'var(--font-geist-sans, "Geist Sans", ui-sans-serif, system-ui, sans-serif)',
         containerType: 'inline-size',
       }}
     >
       <div
         className="px-5 py-4 flex justify-between items-center"
         style={{
-          fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
-          fontSize: '.6875rem', letterSpacing: '.16em', textTransform: 'uppercase',
-          color: 'var(--c-mute)',
+          fontFamily: F_UI,
+          fontSize: '.75rem', fontWeight: 500, letterSpacing: '.2em', textTransform: 'uppercase',
+          color: 'var(--ink-soft)',
         }}
       >
-        <span>{vigil ? '☾ ' : ''}EYE&nbsp;CARE</span>
-        <span style={{
-          fontFamily: FONT_SERIF, fontStyle: 'italic',
-          fontSize: '.75rem', letterSpacing: 0, textTransform: 'none',
-        }}>{t.restYourEyes?.toLowerCase?.() ?? t.restYourEyes}</span>
+        <span style={{ color: 'var(--ink)' }}>{vigil ? '☾ ' : ''}EYE&nbsp;CARE</span>
+        <span style={{ letterSpacing: '.06em', textTransform: 'none' }}>
+          {t.restYourEyes?.toLowerCase?.() ?? t.restYourEyes}
+        </span>
       </div>
 
       <div className="flex-1 grid place-items-center relative">
+        {/* Breathing disc — a raised convex form on the material */}
         <motion.div
           aria-hidden
+          className="neu"
           animate={{ scale }}
           transition={{ duration: 1, ease: [0.4, 0, 0.2, 1] }}
           style={{
             position: 'absolute',
             width: 'min(46vh, 360px)', height: 'min(46vh, 360px)',
             borderRadius: '50%',
-            background: 'radial-gradient(closest-side, var(--c-primary) 0%, transparent 70%)',
-            opacity: 0.22,
-          }}
+            background: 'radial-gradient(closest-side, color-mix(in srgb, var(--accent) 12%, var(--bg)), var(--bg))',
+            '--offset': '12px', '--blur': '28px',
+          } as React.CSSProperties}
         />
-        <motion.div
+        {/* Recessed inner ring — the still eye at the center of the breath */}
+        <div
           aria-hidden
-          animate={{ scale: scale * 0.95 }}
-          transition={{ duration: 1.2, ease: [0.4, 0, 0.2, 1] }}
+          className="neu-pressed"
           style={{
             position: 'absolute',
-            width: 'min(46vh, 360px)', height: 'min(46vh, 360px)',
+            width: 'min(30vh, 232px)', height: 'min(30vh, 232px)',
             borderRadius: '50%',
-            border: '1px solid var(--c-rule)',
-          }}
+            '--offset': '6px', '--blur': '14px',
+          } as React.CSSProperties}
         />
 
         <div className="text-center relative">
           <div style={{
-            fontFamily: FONT_SERIF, fontStyle: 'italic', fontWeight: 300,
-            fontSize: 'clamp(3rem, 20cqw, 8rem)', lineHeight: 1,
-            letterSpacing: '-0.02em', color: 'var(--c-ink)',
-            fontVariantNumeric: 'lining-nums tabular-nums',
+            fontFamily: F_MONO, fontWeight: 400,
+            fontSize: 'clamp(3rem, 20cqw, 7rem)', lineHeight: 1,
+            letterSpacing: '-0.01em', color: 'var(--ink)',
+            fontVariantNumeric: 'tabular-nums',
           }}>
             {String(breakRemaining).padStart(2, '0')}
           </div>
@@ -974,16 +1011,16 @@ function BreakOverlay({
             initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
             style={{
-              fontFamily: FONT_SERIF, fontStyle: 'italic',
-              fontSize: '1.125rem', color: 'var(--c-ink)', marginTop: 12, lineHeight: lh,
+              fontFamily: F_UI,
+              fontSize: '1.05rem', color: 'var(--ink)', marginTop: 14, lineHeight: lh,
             }}
           >
             {phaseText}
           </motion.div>
           <div style={{
-            fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
-            fontSize: '.625rem', letterSpacing: '.12em', textTransform: 'uppercase',
-            color: 'var(--c-mute)', marginTop: 18,
+            fontFamily: F_UI,
+            fontSize: '.625rem', fontWeight: 500, letterSpacing: '.14em', textTransform: 'uppercase',
+            color: 'var(--ink-soft)', marginTop: 18,
           }}>
             {t.lookAway}
           </div>
@@ -991,18 +1028,21 @@ function BreakOverlay({
       </div>
 
       <div className="px-5 pb-5">
-        <div className="flex justify-center mb-3">
+        <div className="flex justify-center mb-4">
           <button
             onClick={onSkip}
             disabled={elapsed < 3}
+            className={elapsed < 3 ? '' : 'neu neu-btn'}
             style={{
-              fontFamily: FONT_SERIF, fontStyle: 'italic',
-              color: 'var(--c-mute)', background: 'transparent', border: 0,
-              padding: '6px 12px', fontSize: '.95rem',
-              borderBottom: '1px dotted var(--c-rule)',
+              fontFamily: F_UI, fontSize: '.6875rem', fontWeight: 500,
+              letterSpacing: '.14em', textTransform: 'uppercase',
+              color: 'var(--ink-soft)', background: 'var(--bg)',
+              border: 0, padding: '11px 24px', borderRadius: 'var(--r-ctrl)',
               cursor: elapsed < 3 ? 'not-allowed' : 'pointer',
               opacity: elapsed < 3 ? 0.4 : 1,
-            }}
+              boxShadow: elapsed < 3 ? 'none' : undefined,
+              ['--offset' as string]: '4px', ['--blur' as string]: '9px',
+            } as React.CSSProperties}
           >
             {t.skipBreak?.toLowerCase?.() ?? t.skipBreak}
           </button>
@@ -1012,11 +1052,17 @@ function BreakOverlay({
             initial={{ opacity: 0 }}
             animate={{ opacity: adVisible ? 1 : 0 }}
             transition={{ duration: 0.8 }}
-            style={{ borderTop: '1px solid var(--c-rule)', paddingTop: 14, textAlign: 'center' }}
+            className="neu-pressed"
+            style={{
+              paddingTop: 14, textAlign: 'center', borderRadius: 'var(--r-card)',
+              padding: '16px 14px',
+              '--offset': '3px', '--blur': '8px',
+            } as React.CSSProperties}
           >
             <div style={{
-              fontFamily: FONT_SERIF, fontStyle: 'italic',
-              fontSize: '.78rem', color: 'var(--c-mute)', marginBottom: 10,
+              fontFamily: F_UI,
+              fontSize: '.72rem', letterSpacing: '.1em', textTransform: 'uppercase',
+              color: 'var(--ink-soft)', marginBottom: 10,
             }}>
               {tKey(language, 'sponsoredBy')}
             </div>
@@ -1044,14 +1090,48 @@ function ProModal({
   const [selBreak, setSelBreak] = useState(breakSeconds);
   const dirty = selWork !== workSeconds || selBreak !== breakSeconds;
 
-  const presetStyle = (active: boolean): React.CSSProperties => ({
-    fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
-    fontSize: '.6875rem', letterSpacing: '.1em',
-    padding: '8px 0', flex: 1, cursor: 'pointer',
-    background: active ? 'var(--c-ink)' : 'transparent',
-    color: active ? 'var(--c-bg)' : 'var(--c-ink)',
-    border: '1px solid var(--c-ink)',
-  });
+  const presetBtn = (active: boolean, children: React.ReactNode, onClick: () => void, key: React.Key) => (
+    <motion.button
+      key={key}
+      whileTap={{ scale: 0.96 }}
+      onClick={onClick}
+      className={active ? 'neu-pressed' : 'neu neu-btn'}
+      style={{
+        fontFamily: F_MONO, fontSize: '.8rem',
+        padding: '11px 0', flex: 1, cursor: 'pointer', border: 0,
+        borderRadius: 'var(--r-sm)', background: 'var(--bg)',
+        color: active ? 'var(--accent)' : 'var(--ink)',
+        fontWeight: active ? 700 : 400,
+        '--offset': '3px', '--blur': '7px',
+      } as React.CSSProperties}
+    >
+      {children}
+    </motion.button>
+  );
+
+  const laterBtn = (
+    <button
+      onClick={onClose}
+      style={{
+        fontFamily: F_UI, fontSize: '.6875rem', fontWeight: 500,
+        letterSpacing: '.12em', textTransform: 'uppercase',
+        color: 'var(--ink-soft)', background: 'transparent', border: 0,
+        padding: 12, cursor: 'pointer',
+      }}
+    >
+      {tKey(language, 'later')}
+    </button>
+  );
+
+  const sectionLabel = (text: string, extra?: React.CSSProperties): React.ReactElement => (
+    <div style={{
+      fontFamily: F_UI, fontSize: '.7rem', fontWeight: 500,
+      letterSpacing: '.12em', textTransform: 'uppercase',
+      color: 'var(--ink-soft)', marginBottom: 10, ...extra,
+    }}>
+      {text}
+    </div>
+  );
 
   return (
     <motion.div
@@ -1061,24 +1141,31 @@ function ProModal({
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, zIndex: 70, display: 'grid', placeItems: 'center',
-        background: 'color-mix(in srgb, var(--c-bg) 80%, transparent)', padding: 24,
+        background: 'color-mix(in srgb, var(--bg) 72%, transparent)',
+        backdropFilter: 'blur(2px)', padding: 24,
       }}
     >
-      <div
+      <motion.div
+        initial={{ scale: 0.96, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.97, opacity: 0 }}
+        transition={{ type: 'spring', stiffness: 320, damping: 26 }}
         onClick={(e) => e.stopPropagation()}
+        className="neu"
         style={{
-          background: 'var(--c-surface)', border: '1px solid var(--c-rule)',
+          background: 'var(--bg)', borderRadius: 'var(--r-card)',
           padding: '32px 28px', maxWidth: 420, width: '100%',
-        }}
+          '--offset': '10px', '--blur': '26px',
+        } as React.CSSProperties}
       >
         <div style={{
-          fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
-          fontSize: '.625rem', letterSpacing: '.16em', textTransform: 'uppercase',
-          color: 'var(--c-primary)', marginBottom: 14,
+          fontFamily: F_UI, fontSize: '.7rem', fontWeight: 500,
+          letterSpacing: '.16em', textTransform: 'uppercase',
+          color: 'var(--accent)', marginBottom: 16,
         }}>
           {pro ? tKey(language, 'rhythm') : tKey(language, 'proTitle')}
           {!pro && (
-            <span style={{ marginInlineStart: 8, color: 'var(--c-mute)' }}>
+            <span style={{ marginInlineStart: 8, color: 'var(--ink-soft)' }}>
               · {tKey(language, 'proPrice')}
             </span>
           )}
@@ -1088,74 +1175,49 @@ function ProModal({
             before the paywall. The selection becomes the pitch. */}
         {!pro && (
           <div style={{
-            fontFamily: FONT_SERIF, fontStyle: 'italic',
-            fontSize: '1.05rem', color: 'var(--c-ink)', lineHeight: 1.4, marginBottom: 18,
+            fontFamily: F_UI,
+            fontSize: '1.05rem', color: 'var(--ink)', lineHeight: 1.45, marginBottom: 20,
           }}>
             {tKey(language, 'proLockedHint')}
           </div>
         )}
 
-        <div style={{
-          fontFamily: FONT_SERIF, fontStyle: 'italic',
-          fontSize: '.9rem', color: 'var(--c-mute)', marginBottom: 8,
-        }}>
-          {tKey(language, 'rhythmWork')}
+        {sectionLabel(tKey(language, 'rhythmWork'))}
+        <div className="flex gap-3">
+          {WORK_PRESETS.map((w) => presetBtn(selWork === w, w / 60, () => setSelWork(w), w))}
         </div>
-        <div className="flex gap-2">
-          {WORK_PRESETS.map((w) => (
-            <button key={w} onClick={() => setSelWork(w)} style={presetStyle(selWork === w)}>
-              {w / 60}
-            </button>
-          ))}
-        </div>
-        <div style={{
-          fontFamily: FONT_SERIF, fontStyle: 'italic',
-          fontSize: '.9rem', color: 'var(--c-mute)', margin: '18px 0 8px',
-        }}>
-          {tKey(language, 'rhythmBreak')}
-        </div>
-        <div className="flex gap-2">
-          {BREAK_PRESETS.map((b) => (
-            <button key={b} onClick={() => setSelBreak(b)} style={presetStyle(selBreak === b)}>
-              {b}
-            </button>
-          ))}
+        {sectionLabel(tKey(language, 'rhythmBreak'), { margin: '20px 0 10px' })}
+        <div className="flex gap-3">
+          {BREAK_PRESETS.map((b) => presetBtn(selBreak === b, b, () => setSelBreak(b), b))}
         </div>
 
         {pro && (
           <>
             <div style={{
-              fontFamily: FONT_SERIF, fontStyle: 'italic',
-              fontSize: '.8rem', color: 'var(--c-mute)', marginTop: 16,
+              fontFamily: F_UI,
+              fontSize: '.82rem', color: 'var(--ink-soft)', marginTop: 18, lineHeight: 1.5,
             }}>
               {tKey(language, 'rhythmNote')}
             </div>
-            <div className="flex gap-3 mt-5">
-              <button
+            <div className="flex gap-3 mt-6 items-center">
+              <motion.button
+                whileTap={{ scale: dirty ? 0.97 : 1 }}
                 onClick={() => onApply(selWork, selBreak)}
                 disabled={!dirty}
+                className={dirty ? 'neu-primary' : 'neu-pressed'}
                 style={{
-                  fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
-                  fontSize: '.6875rem', letterSpacing: '.16em', textTransform: 'uppercase',
-                  background: dirty ? 'var(--c-ink)' : 'transparent',
-                  color: dirty ? 'var(--c-bg)' : 'var(--c-mute)',
-                  border: '1px solid ' + (dirty ? 'var(--c-ink)' : 'var(--c-rule)'),
-                  padding: '12px 22px', cursor: dirty ? 'pointer' : 'not-allowed',
-                }}
+                  fontFamily: F_UI, fontSize: '.7rem', fontWeight: 500,
+                  letterSpacing: '.14em', textTransform: 'uppercase',
+                  color: dirty ? '#fff' : 'var(--ink-soft)',
+                  background: dirty ? undefined : 'var(--bg)',
+                  border: 0, borderRadius: 'var(--r-ctrl)',
+                  padding: '13px 26px', cursor: dirty ? 'pointer' : 'not-allowed',
+                  '--offset': '3px', '--blur': '7px',
+                } as React.CSSProperties}
               >
                 {tKey(language, 'rhythmApply')}
-              </button>
-              <button
-                onClick={onClose}
-                style={{
-                  fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
-                  fontSize: '.625rem', letterSpacing: '.12em', textTransform: 'uppercase',
-                  color: 'var(--c-mute)', background: 'transparent', border: 0,
-                  padding: 12, cursor: 'pointer',
-                }}
-              >
-                {tKey(language, 'later')}
-              </button>
+              </motion.button>
+              {laterBtn}
             </div>
           </>
         )}
@@ -1164,53 +1226,46 @@ function ProModal({
           <>
             {/* What you actually get, listed concretely. */}
             <ul style={{
-              listStyle: 'none', margin: '22px 0 0', padding: 0,
-              fontFamily: FONT_SERIF, fontStyle: 'italic',
-              fontSize: '.95rem', color: 'var(--c-ink)', lineHeight: 1.7,
+              listStyle: 'none', margin: '24px 0 0', padding: 0,
+              fontFamily: F_UI,
+              fontSize: '.95rem', color: 'var(--ink)', lineHeight: 1.7,
             }}>
               {(['proBenefitRhythm', 'proBenefitAds', 'proBenefitForever'] as const).map((k) => (
                 <li key={k} style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-                  <span style={{ color: 'var(--c-primary)' }}>—</span>
+                  <span style={{ color: 'var(--accent)' }}>—</span>
                   {tKey(language, k)}
                 </li>
               ))}
             </ul>
             <div className="flex gap-3 mt-6 items-center">
-              <a
+              <motion.a
+                whileTap={{ scale: 0.97 }}
                 href={PRO_PAYMENT_LINK}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => track('pro_unlock_clicked', { language })}
+                className="neu-primary"
                 style={{
-                  fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
-                  fontSize: '.6875rem', letterSpacing: '.16em', textTransform: 'uppercase',
-                  background: 'var(--c-ink)', color: 'var(--c-bg)',
-                  padding: '13px 24px', textDecoration: 'none',
-                }}
+                  fontFamily: F_UI, fontSize: '.7rem', fontWeight: 500,
+                  letterSpacing: '.14em', textTransform: 'uppercase',
+                  color: '#fff', borderRadius: 'var(--r-ctrl)',
+                  padding: '14px 28px', textDecoration: 'none',
+                  '--offset': '5px', '--blur': '12px',
+                } as React.CSSProperties}
               >
                 {tKey(language, 'proUnlockPrice')}
-              </a>
-              <button
-                onClick={onClose}
-                style={{
-                  fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
-                  fontSize: '.625rem', letterSpacing: '.12em', textTransform: 'uppercase',
-                  color: 'var(--c-mute)', background: 'transparent', border: 0,
-                  padding: 12, cursor: 'pointer',
-                }}
-              >
-                {tKey(language, 'later')}
-              </button>
+              </motion.a>
+              {laterBtn}
             </div>
             <div style={{
-              fontFamily: FONT_SERIF, fontStyle: 'italic',
-              fontSize: '.78rem', color: 'var(--c-mute)', marginTop: 16, lineHeight: 1.5,
+              fontFamily: F_UI,
+              fontSize: '.78rem', color: 'var(--ink-soft)', marginTop: 18, lineHeight: 1.5,
             }}>
               {tKey(language, 'proAlready')}
             </div>
           </>
         )}
-      </div>
+      </motion.div>
     </motion.div>
   );
 }
@@ -1232,43 +1287,53 @@ function LanguagePicker({
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, zIndex: 60,
-        background: 'color-mix(in srgb, var(--c-bg) 85%, transparent)',
+        background: 'color-mix(in srgb, var(--bg) 78%, transparent)',
+        backdropFilter: 'blur(2px)',
         display: 'grid', placeItems: 'center', padding: 24,
       }}
     >
       <motion.div
-        initial={{ y: 8, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={{ y: 4, opacity: 0 }}
+        initial={{ scale: 0.96, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.97, opacity: 0 }}
+        transition={{ type: 'spring', stiffness: 320, damping: 26 }}
         onClick={(e) => e.stopPropagation()}
+        className="neu"
         style={{
-          background: 'var(--c-surface)', border: '1px solid var(--c-rule)',
-          padding: '24px 0', minWidth: 280, maxWidth: 360, width: '100%',
-        }}
+          background: 'var(--bg)', borderRadius: 'var(--r-card)',
+          padding: '24px 12px', minWidth: 280, maxWidth: 360, width: '100%',
+          '--offset': '10px', '--blur': '26px',
+        } as React.CSSProperties}
       >
         <div style={{
-          fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
-          fontSize: '.6875rem', letterSpacing: '.16em', textTransform: 'uppercase',
-          color: 'var(--c-mute)', textAlign: 'center', marginBottom: 14,
+          fontFamily: F_UI, fontSize: '.7rem', fontWeight: 500,
+          letterSpacing: '.16em', textTransform: 'uppercase',
+          color: 'var(--ink-soft)', textAlign: 'center', marginBottom: 16,
         }}>
           Language
         </div>
-        {SUPPORTED_LANGS.map((code) => (
-          <button
-            key={code}
-            onClick={() => onPick(code as Language)}
-            style={{
-              display: 'block', width: '100%', textAlign: 'start',
-              background: 'transparent', border: 0,
-              padding: '10px 24px', cursor: 'pointer',
-              fontFamily: FONT_SERIF, fontStyle: 'italic',
-              fontSize: '1.05rem',
-              color: code === current ? 'var(--c-primary)' : 'var(--c-ink)',
-            }}
-          >
-            {LANG_NATIVE[code]}
-          </button>
-        ))}
+        {SUPPORTED_LANGS.map((code) => {
+          const active = code === current;
+          return (
+            <button
+              key={code}
+              onClick={() => onPick(code as Language)}
+              className={active ? 'neu-pressed' : ''}
+              style={{
+                display: 'block', width: '100%', textAlign: 'start',
+                background: 'var(--bg)', border: 0,
+                padding: '12px 16px', margin: '2px 0', cursor: 'pointer',
+                borderRadius: 'var(--r-ctrl)',
+                fontFamily: F_UI, fontSize: '1rem',
+                fontWeight: active ? 500 : 400,
+                color: active ? 'var(--accent)' : 'var(--ink)',
+                ['--offset' as string]: '3px', ['--blur' as string]: '7px',
+              } as React.CSSProperties}
+            >
+              {LANG_NATIVE[code]}
+            </button>
+          );
+        })}
       </motion.div>
     </motion.div>
   );
@@ -1294,56 +1359,69 @@ function DonationModal({
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, zIndex: 70, display: 'grid', placeItems: 'center',
-        background: 'color-mix(in srgb, var(--c-bg) 80%, transparent)', padding: 24,
+        background: 'color-mix(in srgb, var(--bg) 72%, transparent)',
+        backdropFilter: 'blur(2px)', padding: 24,
       }}
     >
-      <div
+      <motion.div
+        initial={{ scale: 0.96, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.97, opacity: 0 }}
+        transition={{ type: 'spring', stiffness: 320, damping: 26 }}
         onClick={(e) => e.stopPropagation()}
+        className="neu"
         style={{
-          background: 'var(--c-surface)', border: '1px solid var(--c-rule)',
+          background: 'var(--bg)', borderRadius: 'var(--r-card)',
           padding: '36px 32px', maxWidth: 420, textAlign: 'center',
-        }}
+          '--offset': '10px', '--blur': '26px',
+        } as React.CSSProperties}
       >
         <div style={{
-          fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
-          fontSize: '.625rem', letterSpacing: '.12em', textTransform: 'uppercase',
-          color: 'var(--c-mute)', marginBottom: 14,
+          fontFamily: F_UI, fontSize: '.7rem', fontWeight: 500,
+          letterSpacing: '.12em', textTransform: 'uppercase',
+          color: 'var(--ink-soft)', marginBottom: 16,
         }}>
-          {roman(sessionsCompleted)} · {t.totalSessions?.toLowerCase?.() ?? t.totalSessions}
+          <span style={{ fontFamily: F_MONO, letterSpacing: '.04em', textTransform: 'none' }}>
+            {roman(sessionsCompleted)}
+          </span>{' '}
+          · {t.totalSessions?.toLowerCase?.() ?? t.totalSessions}
         </div>
         <div style={{
-          fontFamily: FONT_SERIF, fontStyle: 'italic', fontSize: '1.4rem',
-          color: 'var(--c-ink)', textWrap: 'balance' as never,
+          fontFamily: F_UI, fontSize: '1.35rem', lineHeight: 1.4,
+          color: 'var(--ink)', textWrap: 'balance' as never,
         }}>
           {ask}
         </div>
-        <div className="flex gap-3 justify-center mt-7">
-          <a
+        <div className="flex gap-3 justify-center mt-8 items-center">
+          <motion.a
+            whileTap={{ scale: 0.97 }}
             href="https://buymeacoffee.com/shokawamoto"
             target="_blank"
             rel="noopener noreferrer"
+            className="neu-primary"
             style={{
-              fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
-              fontSize: '.6875rem', letterSpacing: '.16em', textTransform: 'uppercase',
-              background: 'var(--c-ink)', color: 'var(--c-bg)',
-              padding: '12px 22px', textDecoration: 'none',
-            }}
+              fontFamily: F_UI, fontSize: '.7rem', fontWeight: 500,
+              letterSpacing: '.14em', textTransform: 'uppercase',
+              color: '#fff', borderRadius: 'var(--r-ctrl)',
+              padding: '13px 26px', textDecoration: 'none',
+              ['--offset' as string]: '5px', ['--blur' as string]: '12px',
+            } as React.CSSProperties}
           >
             {t.supportWithCoffee}
-          </a>
+          </motion.a>
           <button
             onClick={onClose}
             style={{
-              fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
-              fontSize: '.625rem', letterSpacing: '.12em', textTransform: 'uppercase',
-              color: 'var(--c-mute)', background: 'transparent', border: 0, padding: '12px',
+              fontFamily: F_UI, fontSize: '.6875rem', fontWeight: 500,
+              letterSpacing: '.12em', textTransform: 'uppercase',
+              color: 'var(--ink-soft)', background: 'transparent', border: 0, padding: 12,
               cursor: 'pointer',
             }}
           >
             {tKey(language, 'later')}
           </button>
         </div>
-      </div>
+      </motion.div>
     </motion.div>
   );
 }

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Space_Grotesk, Inter, Space_Mono } from "next/font/google";
 import Script from "next/script";
 import { headers } from "next/headers";
 import PWAInstaller from "@/components/PWAInstaller";
@@ -14,6 +14,27 @@ const geistSans = Geist({
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
+  subsets: ["latin"],
+  display: "swap",
+});
+
+// Shadow Console typography — Grotesk (headings/UI), Inter (body),
+// Space Mono (numbers/measures, the "instrument" typeface).
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-grotesk",
+  subsets: ["latin"],
+  display: "swap",
+});
+
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+  display: "swap",
+});
+
+const spaceMono = Space_Mono({
+  variable: "--font-console",
+  weight: ["400", "700"],
   subsets: ["latin"],
   display: "swap",
 });
@@ -136,7 +157,7 @@ export default async function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
         />
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} ${spaceGrotesk.variable} ${inter.variable} ${spaceMono.variable} antialiased`}>
         {children}
         <PWAInstaller />
         <Script

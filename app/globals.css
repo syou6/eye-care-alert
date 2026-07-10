@@ -72,6 +72,98 @@ html[lang="ar"] body {
   outline-offset: 2px;
 }
 
+/* ─── Shadow Console (neumorphism) — timer home only ────────────────────────
+   One material, one light source (top-left). Separation via shadow, never
+   borders. Tokens are CSS vars so small elements can shrink --offset/--blur
+   locally (a 40px icon button should not wear a card's 6px/14px shadow). */
+.shadow-console {
+  /* light */
+  --bg: #e0e5ec;
+  --ink: #3d4763;
+  --ink-soft: #78849e;
+  --accent: #6d5dfc;
+  --accent-2: #8b7cfc;
+  --sh-dark: #a9b4c7;
+  --sh-light: #ffffff;
+  --offset: 6px;
+  --blur: 14px;
+  --r-card: 26px;
+  --r-ctrl: 18px;
+  --r-sm: 12px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, "Hiragino Sans", "Yu Gothic UI", "Apple SD Gothic Neo",
+    "Microsoft YaHei UI", "Noto Sans Devanagari", "Geeza Pro", sans-serif;
+}
+.shadow-console[data-theme="dark"] {
+  --bg: #1e2233;
+  --ink: #d6dcec;
+  --ink-soft: #8791ac;
+  --sh-dark: #171a28;
+  --sh-light: #262c41;
+}
+
+/* Raised (convex) — the default resting state of every touchable surface. */
+.neu {
+  background: var(--bg);
+  box-shadow:
+    var(--offset) var(--offset) var(--blur) var(--sh-dark),
+    calc(var(--offset) * -1) calc(var(--offset) * -1) var(--blur) var(--sh-light);
+}
+
+/* Pressed (concave) — :active, selected, inputs, the display window, grooves. */
+.neu-pressed {
+  background: var(--bg);
+  box-shadow:
+    inset var(--offset) var(--offset) var(--blur) var(--sh-dark),
+    inset calc(var(--offset) * -1) calc(var(--offset) * -1) var(--blur) var(--sh-light);
+}
+
+.neu,
+.neu-pressed {
+  transition: box-shadow 0.16s ease, transform 0.1s ease;
+}
+
+/* A raised button that sinks in on press. */
+.neu-btn {
+  cursor: pointer;
+  border: 0;
+  background: var(--bg);
+  color: var(--ink);
+}
+.neu-btn:active {
+  box-shadow:
+    inset var(--offset) var(--offset) var(--blur) var(--sh-dark),
+    inset calc(var(--offset) * -1) calc(var(--offset) * -1) var(--blur) var(--sh-light);
+}
+
+/* Accent-filled primary — the one exception to the flat-material rule. */
+.neu-primary {
+  background: linear-gradient(145deg, var(--accent-2), var(--accent));
+  color: #fff;
+  border: 0;
+  cursor: pointer;
+  box-shadow:
+    var(--offset) var(--offset) var(--blur) var(--sh-dark),
+    calc(var(--offset) * -1) calc(var(--offset) * -1) var(--blur) var(--sh-light);
+}
+.neu-primary:active {
+  background: linear-gradient(145deg, var(--accent), var(--accent-2));
+}
+
+.shadow-console :focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .neu,
+  .neu-pressed {
+    transition: none;
+  }
+}
+
 /* Vercel/Next.jsのデプロイメントバッジを非表示 */
 a[href*="vercel.com"][target="_blank"][rel*="noopener"] {
   display: none !important;

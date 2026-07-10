@@ -3,7 +3,11 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { translations, tKey, type Language } from '@/lib/translations';
-import { FONT_SERIF, langLineHeight, isRTL as hoursIsRTL } from '@/lib/hours';
+import { langLineHeight, isRTL as hoursIsRTL } from '@/lib/hours';
+
+// Shadow Console typefaces (families defined in layout.tsx via next/font).
+const F_UI = 'var(--font-grotesk), ui-sans-serif, system-ui, sans-serif';
+const F_MONO = 'var(--font-console), ui-monospace, monospace';
 
 export const WELCOME_STORAGE_KEY = 'eyeCareWelcomeSeen';
 
@@ -51,6 +55,31 @@ export default function WelcomeModal({
 
   const handleSkip = () => onComplete({ allowedNotifications: false });
 
+  const title = (text: string) => (
+    <h2
+      id="welcome-title"
+      style={{
+        margin: 0,
+        fontFamily: F_UI, fontWeight: 500,
+        fontSize: 'clamp(1.9rem, 6vw, 2.8rem)', lineHeight: 1.1,
+        letterSpacing: '-0.01em', color: 'var(--ink)',
+      }}
+    >
+      {text}
+    </h2>
+  );
+
+  const body = (text: string) => (
+    <p style={{
+      marginTop: 22,
+      fontFamily: F_UI,
+      fontSize: '1.1rem', lineHeight: lh,
+      color: 'var(--ink-soft)',
+    }}>
+      {text}
+    </p>
+  );
+
   return (
     <motion.div
       dir={dir}
@@ -59,15 +88,14 @@ export default function WelcomeModal({
       exit={{ opacity: 0 }}
       style={{
         position: 'fixed', inset: 0, zIndex: 80,
-        background: 'var(--c-bg)',
+        background: 'var(--bg)',
         display: 'flex', flexDirection: 'column',
       }}
     >
-      {/* Language strip — always visible so user can switch before reading anything */}
+      {/* Language strip — always visible so user can switch before reading */}
       <div
         style={{
           padding: '14px 16px',
-          borderBottom: '1px solid var(--c-rule)',
           display: 'flex',
           gap: 8,
           overflowX: 'auto',
@@ -76,9 +104,9 @@ export default function WelcomeModal({
       >
         <span
           style={{
-            fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
-            fontSize: '.625rem', letterSpacing: '.12em', textTransform: 'uppercase',
-            color: 'var(--c-mute)', marginInlineEnd: 6, whiteSpace: 'nowrap',
+            fontFamily: F_UI,
+            fontSize: '.625rem', fontWeight: 500, letterSpacing: '.14em', textTransform: 'uppercase',
+            color: 'var(--ink-soft)', marginInlineEnd: 6, whiteSpace: 'nowrap',
           }}
         >
           Language ·
@@ -90,18 +118,21 @@ export default function WelcomeModal({
               key={code}
               onClick={() => onLanguageChange(code)}
               aria-pressed={selected}
+              className={selected ? 'neu-pressed' : ''}
               style={{
-                background: 'transparent',
+                background: 'var(--bg)',
                 border: 0,
-                padding: '6px 10px',
+                padding: '8px 14px',
+                borderRadius: 999,
                 cursor: 'pointer',
-                fontFamily: FONT_SERIF,
-                fontStyle: 'italic',
-                fontSize: '.95rem',
-                color: selected ? 'var(--c-primary)' : 'var(--c-mute)',
+                fontFamily: F_UI,
+                fontSize: '.9rem',
+                fontWeight: selected ? 500 : 400,
+                color: selected ? 'var(--accent)' : 'var(--ink-soft)',
                 whiteSpace: 'nowrap',
-                borderBottom: selected ? '1px solid var(--c-primary)' : '1px solid transparent',
-              }}
+                ['--offset' as string]: '2px',
+                ['--blur' as string]: '5px',
+              } as React.CSSProperties}
             >
               {name}
             </button>
@@ -125,98 +156,68 @@ export default function WelcomeModal({
       >
         <div style={{ width: '100%', maxWidth: 520, textAlign: 'center' }}>
           <div style={{
-            fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
-            fontSize: '.625rem', letterSpacing: '.16em', textTransform: 'uppercase',
-            color: 'var(--c-mute)', marginBottom: 18,
+            fontFamily: F_UI,
+            fontSize: '.6875rem', fontWeight: 500, letterSpacing: '.16em', textTransform: 'uppercase',
+            color: 'var(--ink-soft)', marginBottom: 22,
           }}>
-            {t.title} · {step === 1 ? 'I' : 'II'} / II
+            {t.title} ·{' '}
+            <span style={{ fontFamily: F_MONO }}>{step === 1 ? 'I' : 'II'} / II</span>
           </div>
 
           {step === 1 ? (
             <>
-              <h2
-                id="welcome-title"
-                style={{
-                  margin: 0,
-                  fontFamily: FONT_SERIF, fontStyle: 'italic', fontWeight: 400,
-                  fontSize: 'clamp(2rem, 6vw, 3rem)', lineHeight: 1.05,
-                  letterSpacing: '-0.015em', color: 'var(--c-ink)',
-                }}
-              >
-                {tKey(language, 'welcomeTitle1')}
-              </h2>
-              <p style={{
-                marginTop: 22,
-                fontFamily: FONT_SERIF, fontStyle: 'italic',
-                fontSize: '1.125rem', lineHeight: lh,
-                color: 'var(--c-mute)',
-              }}>
-                {tKey(language, 'welcomeBody1')}
-              </p>
+              {title(tKey(language, 'welcomeTitle1'))}
+              {body(tKey(language, 'welcomeBody1'))}
 
-              <button
+              <motion.button
+                whileTap={{ scale: 0.97 }}
                 onClick={() => setStep(2)}
+                className="neu-primary"
                 style={{
-                  marginTop: 36,
-                  fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
-                  fontSize: '.6875rem', letterSpacing: '.16em', textTransform: 'uppercase',
-                  border: '1px solid var(--c-ink)', color: 'var(--c-ink)',
-                  background: 'transparent', padding: '12px 28px',
-                  minHeight: 44, cursor: 'pointer',
+                  marginTop: 40,
+                  fontFamily: F_UI, fontSize: '.7rem', fontWeight: 500,
+                  letterSpacing: '.16em', textTransform: 'uppercase',
+                  color: '#fff', borderRadius: 'var(--r-ctrl)',
+                  padding: '15px 36px', minHeight: 48, cursor: 'pointer',
                 }}
               >
                 Next
-              </button>
+              </motion.button>
             </>
           ) : (
             <>
-              <h2
-                id="welcome-title"
-                style={{
-                  margin: 0,
-                  fontFamily: FONT_SERIF, fontStyle: 'italic', fontWeight: 400,
-                  fontSize: 'clamp(2rem, 6vw, 3rem)', lineHeight: 1.05,
-                  letterSpacing: '-0.015em', color: 'var(--c-ink)',
-                }}
-              >
-                {tKey(language, 'welcomeTitle2')}
-              </h2>
-              <p style={{
-                marginTop: 22,
-                fontFamily: FONT_SERIF, fontStyle: 'italic',
-                fontSize: '1.125rem', lineHeight: lh,
-                color: 'var(--c-mute)',
-              }}>
-                {tKey(language, 'welcomeBody2')}
-              </p>
+              {title(tKey(language, 'welcomeTitle2'))}
+              {body(tKey(language, 'welcomeBody2'))}
 
               <div style={{
-                marginTop: 36,
+                marginTop: 40,
                 display: 'flex',
                 gap: 16,
                 justifyContent: 'center',
+                alignItems: 'center',
                 flexWrap: 'wrap',
               }}>
-                <button
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
                   onClick={handleAllow}
+                  className="neu-primary"
                   style={{
-                    fontFamily: 'var(--font-geist-mono, "Geist Mono", ui-monospace, monospace)',
-                    fontSize: '.6875rem', letterSpacing: '.16em', textTransform: 'uppercase',
-                    background: 'var(--c-ink)', color: 'var(--c-bg)',
-                    border: 0, padding: '12px 22px',
-                    minHeight: 44, cursor: 'pointer',
+                    fontFamily: F_UI, fontSize: '.7rem', fontWeight: 500,
+                    letterSpacing: '.16em', textTransform: 'uppercase',
+                    color: '#fff', borderRadius: 'var(--r-ctrl)',
+                    padding: '15px 30px', minHeight: 48, cursor: 'pointer',
                   }}
                 >
                   {tKey(language, 'welcomeAllow')}
-                </button>
+                </motion.button>
                 <button
                   onClick={handleSkip}
                   style={{
-                    fontFamily: FONT_SERIF, fontStyle: 'italic',
-                    color: 'var(--c-mute)',
+                    fontFamily: F_UI, fontSize: '.7rem', fontWeight: 500,
+                    letterSpacing: '.12em', textTransform: 'uppercase',
+                    color: 'var(--ink-soft)',
                     background: 'transparent', border: 0,
-                    padding: '12px 16px', fontSize: '.95rem',
-                    borderBottom: '1px dotted var(--c-rule)',
+                    padding: '12px 16px',
                     cursor: 'pointer',
                   }}
                 >
