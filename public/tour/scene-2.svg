@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <radialGradient id="s2bg" cx="50%" cy="46%" r="75%">
+      <stop offset="0%" stop-color="#2a2230"/>
+      <stop offset="55%" stop-color="#171320"/>
+      <stop offset="100%" stop-color="#0a0810"/>
+    </radialGradient>
+    <radialGradient id="s2iris" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#0a0a12"/>
+      <stop offset="22%" stop-color="#0a0a12"/>
+      <stop offset="30%" stop-color="#3f6fa8"/>
+      <stop offset="58%" stop-color="#6fb0e0"/>
+      <stop offset="80%" stop-color="#9bd2f2"/>
+      <stop offset="100%" stop-color="#cdeafc"/>
+    </radialGradient>
+    <radialGradient id="s2warm" cx="50%" cy="50%" r="60%">
+      <stop offset="0%" stop-color="#ffb27a" stop-opacity="0"/>
+      <stop offset="72%" stop-color="#ff9a5a" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#ff7a49" stop-opacity="0.5"/>
+    </radialGradient>
+    <filter id="s2blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="20"/></filter>
+    <filter id="s2v" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.4"/></filter>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#s2bg)"/>
+
+  <!-- eye white -->
+  <path d="M360 440 Q800 150 1240 440 Q800 730 360 440 Z" fill="#f0e9e4"/>
+  <path d="M360 440 Q800 150 1240 440 Q800 730 360 440 Z" fill="url(#s2warm)"/>
+
+  <!-- strain veins -->
+  <g stroke="#e0654e" stroke-width="2.4" fill="none" opacity="0.55" filter="url(#s2v)" stroke-linecap="round">
+    <path d="M410 452 q70 -14 150 4"/>
+    <path d="M430 470 q90 20 170 6"/>
+    <path d="M1190 448 q-80 -18 -160 2"/>
+    <path d="M1170 474 q-70 22 -150 8"/>
+    <path d="M470 410 q60 -6 120 10"/>
+  </g>
+
+  <!-- iris + pupil -->
+  <circle cx="800" cy="440" r="188" fill="url(#s2iris)"/>
+  <circle cx="800" cy="440" r="188" fill="none" stroke="#2b4a6b" stroke-width="3" opacity="0.5"/>
+  <!-- fibers -->
+  <g stroke="#bfe3f6" stroke-width="1.4" opacity="0.4">
+    <line x1="800" y1="300" x2="800" y2="360"/><line x1="940" y1="440" x2="880" y2="440"/>
+    <line x1="800" y1="580" x2="800" y2="520"/><line x1="660" y1="440" x2="720" y2="440"/>
+    <line x1="900" y1="340" x2="860" y2="380"/><line x1="700" y1="340" x2="740" y2="380"/>
+    <line x1="900" y1="540" x2="860" y2="500"/><line x1="700" y1="540" x2="740" y2="500"/>
+  </g>
+  <circle cx="800" cy="440" r="86" fill="#07070d"/>
+  <!-- screen reflection in pupil: cool rectangle -->
+  <rect x="742" y="392" width="86" height="60" rx="6" fill="#bfe4ff" opacity="0.85" filter="url(#s2v)"/>
+  <rect x="836" y="404" width="20" height="42" rx="4" fill="#8fd4ff" opacity="0.5" filter="url(#s2v)"/>
+  <!-- catchlight -->
+  <circle cx="866" cy="372" r="20" fill="#ffffff" opacity="0.9" filter="url(#s2v)"/>
+
+  <!-- lids closing in (vignette of skin) -->
+  <path d="M360 440 Q800 150 1240 440 L1240 120 L360 120 Z" fill="#0a0810" opacity="0.0"/>
+  <ellipse cx="800" cy="440" rx="900" ry="520" fill="none" stroke="#0a0810" stroke-width="220" opacity="0.55" filter="url(#s2blur)"/>
+</svg>

@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="s4room" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2b3140"/>
+      <stop offset="100%" stop-color="#141821"/>
+    </linearGradient>
+    <linearGradient id="s4sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#bfe0ea"/>
+      <stop offset="42%" stop-color="#dcecdf"/>
+      <stop offset="100%" stop-color="#eef1dc"/>
+    </linearGradient>
+    <radialGradient id="s4sun" cx="50%" cy="42%" r="46%">
+      <stop offset="0%" stop-color="#fff7e0" stop-opacity="0.95"/>
+      <stop offset="60%" stop-color="#ffedc0" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#ffedc0" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="s4hill1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#a9cf9b"/><stop offset="100%" stop-color="#88b87e"/>
+    </linearGradient>
+    <linearGradient id="s4hill2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7db38a"/><stop offset="100%" stop-color="#5f9b74"/>
+    </linearGradient>
+    <filter id="s4soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="8"/></filter>
+  </defs>
+
+  <!-- interior wall -->
+  <rect width="1600" height="900" fill="url(#s4room)"/>
+
+  <!-- window opening -->
+  <g>
+    <rect x="470" y="150" width="660" height="600" rx="18" fill="url(#s4sky)"/>
+    <rect x="470" y="150" width="660" height="600" rx="18" fill="url(#s4sun)"/>
+
+    <!-- distant hills (the 20 feet away) -->
+    <path d="M470 560 Q640 470 820 520 Q1000 566 1130 500 L1130 750 L470 750 Z" fill="url(#s4hill1)"/>
+    <path d="M470 620 Q680 540 900 590 Q1030 618 1130 578 L1130 750 L470 750 Z" fill="url(#s4hill2)"/>
+    <!-- lone tree -->
+    <g transform="translate(980 520)">
+      <rect x="-6" y="0" width="12" height="70" rx="4" fill="#4a6d4f"/>
+      <circle cx="0" cy="-14" r="42" fill="#79ad74"/>
+      <circle cx="-26" cy="6" r="30" fill="#6fa46b"/>
+      <circle cx="26" cy="4" r="32" fill="#82b57c"/>
+    </g>
+    <!-- birds -->
+    <g stroke="#4a6d4f" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.7">
+      <path d="M600 300 q14 -12 28 0 q14 -12 28 0"/>
+      <path d="M700 260 q11 -10 22 0 q11 -10 22 0"/>
+    </g>
+
+    <!-- window mullions -->
+    <rect x="792" y="150" width="16" height="600" fill="#e9ead9" opacity="0.9"/>
+    <rect x="470" y="442" width="660" height="16" fill="#e9ead9" opacity="0.9"/>
+    <rect x="470" y="150" width="660" height="600" rx="18" fill="none" stroke="#eef0df" stroke-width="18"/>
+  </g>
+
+  <!-- warm light spill on interior floor -->
+  <path d="M470 750 L1130 750 L1320 900 L280 900 Z" fill="#fff2cf" opacity="0.14" filter="url(#s4soft)"/>
+
+  <!-- foreground: a plant on the sill for depth -->
+  <g transform="translate(360 720)" filter="url(#s4soft)">
+    <path d="M0 60 Q-40 -40 -70 -110" stroke="#5f9b74" stroke-width="9" fill="none" stroke-linecap="round"/>
+    <path d="M0 60 Q10 -30 60 -96" stroke="#6fa46b" stroke-width="9" fill="none" stroke-linecap="round"/>
+    <path d="M0 60 Q-6 -10 6 -140" stroke="#79ad74" stroke-width="9" fill="none" stroke-linecap="round"/>
+    <rect x="-46" y="52" width="92" height="86" rx="12" fill="#243042"/>
+  </g>
+</svg>

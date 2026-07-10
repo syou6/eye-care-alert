@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <radialGradient id="s1sky" cx="50%" cy="34%" r="80%">
+      <stop offset="0%" stop-color="#232a44"/>
+      <stop offset="45%" stop-color="#161a2e"/>
+      <stop offset="100%" stop-color="#0b0d18"/>
+    </radialGradient>
+    <radialGradient id="s1glow" cx="50%" cy="46%" r="42%">
+      <stop offset="0%" stop-color="#8fd4ff" stop-opacity="0.9"/>
+      <stop offset="35%" stop-color="#5aa9e6" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#5aa9e6" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="s1screen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e9f6ff"/>
+      <stop offset="55%" stop-color="#bfe4ff"/>
+      <stop offset="100%" stop-color="#7fc0ee"/>
+    </linearGradient>
+    <filter id="s1blur" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="26"/>
+    </filter>
+    <filter id="s1soft" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6"/>
+    </filter>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#s1sky)"/>
+  <!-- dust -->
+  <g fill="#9fb4e0" opacity="0.5">
+    <circle cx="220" cy="180" r="2"/><circle cx="410" cy="120" r="1.5"/><circle cx="1290" cy="150" r="2"/>
+    <circle cx="1420" cy="260" r="1.6"/><circle cx="150" cy="360" r="1.4"/><circle cx="1500" cy="430" r="1.8"/>
+    <circle cx="320" cy="300" r="1.2"/><circle cx="1180" cy="80" r="1.4"/>
+  </g>
+
+  <!-- screen glow -->
+  <ellipse cx="800" cy="430" rx="560" ry="420" fill="url(#s1glow)" filter="url(#s1blur)"/>
+
+  <!-- monitor -->
+  <g>
+    <rect x="560" y="250" width="480" height="300" rx="16" fill="#0f1424" stroke="#2b3352" stroke-width="3"/>
+    <rect x="578" y="268" width="444" height="264" rx="8" fill="url(#s1screen)"/>
+    <!-- screen content: rows of code-ish lines -->
+    <g fill="#4b7bb0" opacity="0.55">
+      <rect x="602" y="298" width="230" height="10" rx="5"/>
+      <rect x="602" y="326" width="330" height="10" rx="5"/>
+      <rect x="602" y="354" width="180" height="10" rx="5"/>
+      <rect x="602" y="382" width="300" height="10" rx="5"/>
+      <rect x="602" y="410" width="250" height="10" rx="5"/>
+      <rect x="602" y="438" width="200" height="10" rx="5"/>
+      <rect x="602" y="466" width="290" height="10" rx="5"/>
+    </g>
+    <!-- stand -->
+    <rect x="778" y="550" width="44" height="60" fill="#141a2c"/>
+    <rect x="716" y="606" width="168" height="18" rx="9" fill="#171e34"/>
+  </g>
+
+  <!-- desk plane -->
+  <rect x="0" y="624" width="1600" height="276" fill="#0c0f1a"/>
+  <rect x="0" y="624" width="1600" height="4" fill="#2a3350" opacity="0.6"/>
+
+  <!-- foreground silhouette: person at desk -->
+  <g fill="#05070d" filter="url(#s1soft)">
+    <ellipse cx="800" cy="940" rx="210" ry="150"/>
+    <circle cx="800" cy="720" r="86"/>
+  </g>
+  <!-- rim light on head from screen -->
+  <path d="M726 700 a86 86 0 0 1 148 0" fill="none" stroke="#8fd4ff" stroke-width="5" stroke-linecap="round" opacity="0.5" filter="url(#s1soft)"/>
+</svg>
