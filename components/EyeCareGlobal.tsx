@@ -3,8 +3,9 @@
 // EyeCareGlobal — "Shadow Console" neumorphic redesign.
 // One material, one light source (top-left): every surface shares --bg and is
 // separated only by soft dual shadows (see .neu / .neu-pressed in globals.css).
-// Accent is reserved as signal — primary action, progress, ON/selected, the
-// last-minute urgent readout. Preserves the timestamp-based reducer, i18n
+// Accent (terracotta #c47d56 — shared with the editorial content pages) is
+// reserved as signal — primary action, progress, ON/selected, the last-minute
+// urgent readout. Preserves the timestamp-based reducer, i18n
 // routing, audio, ticker, streak and Pro logic; only the render tree changed.
 
 import { useEffect, useReducer, useRef, useState, useCallback } from 'react';

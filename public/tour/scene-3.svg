@@ -1,32 +1,31 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" preserveAspectRatio="xMidYMid slice">
   <defs>
     <radialGradient id="s3bg" cx="50%" cy="42%" r="80%">
-      <stop offset="0%" stop-color="#3b3470"/>
-      <stop offset="52%" stop-color="#221d47"/>
-      <stop offset="100%" stop-color="#120f28"/>
+      <stop offset="0%" stop-color="#4a352a"/>
+      <stop offset="52%" stop-color="#2c1d15"/>
+      <stop offset="100%" stop-color="#150d08"/>
     </radialGradient>
     <radialGradient id="s3orb" cx="42%" cy="38%" r="66%">
-      <stop offset="0%" stop-color="#c9c0ff"/>
-      <stop offset="42%" stop-color="#8b7cfc"/>
-      <stop offset="100%" stop-color="#5a4bd6"/>
+      <stop offset="0%" stop-color="#f3d3b4"/>
+      <stop offset="42%" stop-color="#c47d56"/>
+      <stop offset="100%" stop-color="#9a5638"/>
     </radialGradient>
     <radialGradient id="s3halo" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#8b7cfc" stop-opacity="0.55"/>
-      <stop offset="100%" stop-color="#8b7cfc" stop-opacity="0"/>
+      <stop offset="0%" stop-color="#c47d56" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#c47d56" stop-opacity="0"/>
     </radialGradient>
     <filter id="s3blur" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="30"/></filter>
     <linearGradient id="s3path" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="#8b7cfc" stop-opacity="0.05"/>
-      <stop offset="50%" stop-color="#8b7cfc" stop-opacity="0.5"/>
-      <stop offset="100%" stop-color="#8b7cfc" stop-opacity="0.05"/>
+      <stop offset="0%" stop-color="#c47d56" stop-opacity="0.05"/>
+      <stop offset="50%" stop-color="#c47d56" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#c47d56" stop-opacity="0.05"/>
     </linearGradient>
-    <font-face font-family="mono"/>
   </defs>
 
   <rect width="1600" height="900" fill="url(#s3bg)"/>
 
   <!-- receding grid floor -->
-  <g stroke="#6a5fd0" stroke-width="1.5" opacity="0.28">
+  <g stroke="#a06a48" stroke-width="1.5" opacity="0.28">
     <line x1="800" y1="470" x2="140" y2="900"/>
     <line x1="800" y1="470" x2="470" y2="900"/>
     <line x1="800" y1="470" x2="800" y2="900"/>
@@ -46,25 +45,25 @@
     <circle r="150" fill="url(#s3halo)" filter="url(#s3blur)"/>
     <circle r="62" fill="url(#s3orb)"/>
     <text x="0" y="9" text-anchor="middle" font-family="'Space Mono',ui-monospace,monospace" font-size="34" font-weight="700" fill="#fff">20s</text>
-    <text x="0" y="108" text-anchor="middle" font-family="'Space Grotesk',system-ui,sans-serif" font-size="19" letter-spacing="2" fill="#c9c0ff">LOOK</text>
+    <text x="0" y="108" text-anchor="middle" font-family="'Space Grotesk',system-ui,sans-serif" font-size="19" letter-spacing="2" fill="#f0d3bc">LOOK</text>
   </g>
   <!-- 20 ft (mid) -->
   <g transform="translate(800 428)">
     <circle r="210" fill="url(#s3halo)" filter="url(#s3blur)"/>
     <circle r="92" fill="url(#s3orb)"/>
     <text x="0" y="14" text-anchor="middle" font-family="'Space Mono',ui-monospace,monospace" font-size="52" font-weight="700" fill="#fff">20ft</text>
-    <text x="0" y="150" text-anchor="middle" font-family="'Space Grotesk',system-ui,sans-serif" font-size="24" letter-spacing="3" fill="#d6cfff">AWAY</text>
+    <text x="0" y="150" text-anchor="middle" font-family="'Space Grotesk',system-ui,sans-serif" font-size="24" letter-spacing="3" fill="#f5e0cd">AWAY</text>
   </g>
   <!-- 20 min (near, left) -->
   <g transform="translate(430 452)">
     <circle r="260" fill="url(#s3halo)" filter="url(#s3blur)"/>
     <circle r="120" fill="url(#s3orb)"/>
     <text x="0" y="18" text-anchor="middle" font-family="'Space Mono',ui-monospace,monospace" font-size="66" font-weight="700" fill="#fff">20m</text>
-    <text x="0" y="188" text-anchor="middle" font-family="'Space Grotesk',system-ui,sans-serif" font-size="28" letter-spacing="4" fill="#e4dfff">EVERY</text>
+    <text x="0" y="188" text-anchor="middle" font-family="'Space Grotesk',system-ui,sans-serif" font-size="28" letter-spacing="4" fill="#faeaDB">EVERY</text>
   </g>
 
   <!-- drifting sparks -->
-  <g fill="#c9c0ff" opacity="0.7">
+  <g fill="#f0d3bc" opacity="0.7">
     <circle cx="250" cy="180" r="2.4"/><circle cx="1360" cy="220" r="2"/><circle cx="980" cy="150" r="1.8"/>
     <circle cx="600" cy="120" r="2"/><circle cx="1450" cy="520" r="2.2"/><circle cx="120" cy="520" r="2"/>
   </g>
